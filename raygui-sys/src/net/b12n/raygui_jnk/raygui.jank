@@ -1,0 +1,407 @@
+(ns net.b12n.raygui-jnk.raygui
+  "raygui's control surface, as jank functions.
+
+  This is the ONLY namespace that includes raygui.h. Everything else reaches
+  raygui through here, which is what lets the native-value boundary rule be
+  obeyed once, centrally.
+
+  The rule: a Rectangle has no conversion trait, so it cannot be passed to or
+  returned from a jank fn. Every control fn therefore takes x/y/w/h as plain
+  numbers and constructs its Rectangle INSIDE its own body, where the value is
+  born and dies. Examples never see a Rectangle.
+
+  Application state travels as CELLS: boxed native lvalues, allocated before
+  the frame loop and read back with the matching accessor. raygui keeps no
+  state of its own; the caller owns it and C wants a pointer to it.
+
+  Two argument shapes are easy to confuse and the compiler will not help:
+  `bool *` out-params (toggle!, checkbox!) take a CELL, while `bool editMode`
+  (text-box!, dropdown-box!, spinner!, value-box!) takes a plain jank boolean.
+  Passing a cell where a plain bool belongs compiles -- C++ converts a pointer
+  to bool -- and pins the control permanently in edit mode.
+
+  Positional parameters are deliberate here, against the house
+  check:positional-args convention: a jank fn caps at 10 parameters, and a map
+  argument would have to be destructured back to native floats anyway."
+  (:include "raylib.h" "raygui.h"))
+
+;; ----------------------------------------------------------------- cells
+
+;; Boxing normally cannot be wrapped in a fn -- by the time the body runs, a
+;; NATIVE argument has already arrived as an object_ref. It works here because
+;; v is trait-convertible: (cpp/float v) on a jank number is a conversion, not
+;; a re-box. Do not generalise this to a cell holding a native struct.
+
+(defn fcell [v] (cpp/box (cpp/new cpp/float (cpp/float v))))
+(defn icell [v] (cpp/box (cpp/new cpp/int   (cpp/int   v))))
+(defn bcell [v] (cpp/box (cpp/new cpp/bool  (cpp/bool  v))))
+
+(defn fvalue [c] (+ 0.0 (cpp/* (cpp/unbox (:* cpp/float) c))))
+(defn ivalue [c] (int (+ 0.0 (cpp/* (cpp/unbox (:* cpp/int) c)))))
+(defn bvalue [c] (cpp/* (cpp/unbox (:* cpp/bool) c)))
+
+(defn freset! [c v] (cpp/= (cpp/* (cpp/unbox (:* cpp/float) c)) (cpp/float v)) nil)
+(defn ireset! [c v] (cpp/= (cpp/* (cpp/unbox (:* cpp/int)   c)) (cpp/int   v)) nil)
+(defn breset! [c v] (cpp/= (cpp/* (cpp/unbox (:* cpp/bool)  c)) (cpp/bool  v)) nil)
+
+;; A colour cell is a Color*, which cpp/new already gives us -- do NOT take its
+;; address again or you get Color** and "No matching call".
+(defn ccell [r g b a]
+  (cpp/box (cpp/new cpp/Color (cpp/cast cpp/uint8_t r) (cpp/cast cpp/uint8_t g)
+                              (cpp/cast cpp/uint8_t b) (cpp/cast cpp/uint8_t a))))
+
+(defn cvalue
+  "The cell's colour as a plain [r g b a] jank vector."
+  [c]
+  (let [p (cpp/unbox (:* cpp/Color) c)]
+    [(int (+ 0.0 (.-r (cpp/* p)))) (int (+ 0.0 (.-g (cpp/* p))))
+     (int (+ 0.0 (.-b (cpp/* p)))) (int (+ 0.0 (.-a (cpp/* p))))]))
+
+(defn creset! [c r g b a]
+  (let [p (cpp/unbox (:* cpp/Color) c)]
+    (cpp/= (.-r (cpp/* p)) (cpp/cast cpp/uint8_t r))
+    (cpp/= (.-g (cpp/* p)) (cpp/cast cpp/uint8_t g))
+    (cpp/= (.-b (cpp/* p)) (cpp/cast cpp/uint8_t b))
+    (cpp/= (.-a (cpp/* p)) (cpp/cast cpp/uint8_t a)))
+  nil)
+
+(defn v2cell [x y]
+  (cpp/box (cpp/new cpp/Vector2 (cpp/float x) (cpp/float y))))
+
+(defn v2value [c]
+  (let [p (cpp/unbox (:* cpp/Vector2) c)]
+    [(+ 0.0 (.-x (cpp/* p))) (+ 0.0 (.-y (cpp/* p)))]))
+
+(defn v3cell [x y z]
+  (cpp/box (cpp/new cpp/Vector3 (cpp/float x) (cpp/float y) (cpp/float z))))
+
+(defn v3value [c]
+  (let [p (cpp/unbox (:* cpp/Vector3) c)]
+    [(+ 0.0 (.-x (cpp/* p))) (+ 0.0 (.-y (cpp/* p))) (+ 0.0 (.-z (cpp/* p)))]))
+
+;; A text cell is a heap char buffer. cpp/new does not do arrays; MemAlloc plus
+;; an unsafe-cast is the way.
+(defn tcell
+  "A mutable char buffer of `cap` bytes, seeded with `s`."
+  [s cap]
+  (let [p (cpp/unsafe-cast (:* cpp/char) (cpp/MemAlloc (cpp/uint32_t cap)))]
+    (cpp/TextCopy p s)
+    (cpp/box p)))
+
+(defn tvalue
+  "Reads a text cell back as a jank string. TextFormat is variadic and
+   therefore unusable from jank; this cast is the replacement."
+  [c]
+  (str (cpp/cast (:* (:const cpp/char)) (cpp/unbox (:* cpp/char) c))))
+
+(defn treset! [c s]
+  (cpp/TextCopy (cpp/unbox (:* cpp/char) c) s)
+  nil)
+
+(defn tfree! [c] (cpp/MemFree (cpp/unbox (:* cpp/char) c)) nil)
+
+;; ----------------------------------------------------------------- style
+
+(defn style-get [ctrl prop]
+  (int (cpp/GuiGetStyle (cpp/int ctrl) (cpp/int prop))))
+
+(defn style-set! [ctrl prop v]
+  (cpp/GuiSetStyle (cpp/int ctrl) (cpp/int prop) (cpp/int v))
+  nil)
+
+(defn style-default! [] (cpp/GuiLoadStyleDefault) nil)
+
+(defn hex->color!
+  "Applies a raygui style colour as the current ClearBackground colour.
+
+   raygui stores style colours 0xRRGGBBAA; raylib's Color packs 0xAABBGGRR.
+   GetColor converts. jank boxes the style int SIGNED, so widen it first --
+   and note cpp/unsigned_int does not exist; cpp/uint32_t is the spelling."
+  [hexv]
+  (cpp/ClearBackground (cpp/GetColor (cpp/cast cpp/uint32_t (cpp/int hexv))))
+  nil)
+
+(defn clear-to-style!
+  "Clears the frame to a style colour, given its (control, property) pair."
+  [ctrl prop]
+  (cpp/ClearBackground
+   (cpp/GetColor (cpp/cast cpp/uint32_t (cpp/GuiGetStyle (cpp/int ctrl) (cpp/int prop)))))
+  nil)
+
+(defn load-style!
+  "Loads an .rgs file: palette and embedded font.
+
+   Uses raylib's own reader -- jank is native, so there is no java.nio to read
+   the bytes with. The path resolves against the process working directory, so
+   callers must anchor it (see net.b12n.raygui-jnk.raylib/styles-path)."
+  [path]
+  (let [n   (cpp/int 0)
+        buf (cpp/LoadFileData path (cpp/& n))]
+    (cpp/GuiLoadStyleFromMemory buf (cpp/int (+ 0.0 n)))
+    (cpp/UnloadFileData buf))
+  nil)
+
+;; ---------------------------------------------------------- global state
+
+(defn enable!  [] (cpp/GuiEnable) nil)
+(defn disable! [] (cpp/GuiDisable) nil)
+(defn lock!    [] (cpp/GuiLock) nil)
+(defn unlock!  [] (cpp/GuiUnlock) nil)
+(defn locked?  [] (cpp/GuiIsLocked))
+(defn set-alpha! [a] (cpp/GuiSetAlpha (cpp/float a)) nil)
+(defn set-state! [s] (cpp/GuiSetState (cpp/int s)) nil)
+(defn get-state  [] (int (cpp/GuiGetState)))
+(defn enable-tooltip!  [] (cpp/GuiEnableTooltip) nil)
+(defn disable-tooltip! [] (cpp/GuiDisableTooltip) nil)
+(defn set-tooltip! [t] (cpp/GuiSetTooltip t) nil)
+(defn text-width [t] (int (cpp/GuiGetTextWidth t)))
+
+;; ----------------------------------------------------------------- icons
+
+(defn icon-text
+  "raygui owns the returned string in a static ring buffer: it is valid only
+   until the next call. Use it immediately as a label; never store it."
+  [icon-id text]
+  (str (cpp/GuiIconText (cpp/int icon-id) text)))
+
+(defn draw-icon!
+  "Takes r/g/b/a rather than a Color: a native struct cannot cross a jank fn
+   boundary, so the colour is built here where GuiDrawIcon consumes it."
+  [icon-id x y pixel-size r g b a]
+  (cpp/GuiDrawIcon (cpp/int icon-id) (cpp/int x) (cpp/int y) (cpp/int pixel-size)
+                   (cpp/Color (cpp/cast cpp/uint8_t r) (cpp/cast cpp/uint8_t g)
+                              (cpp/cast cpp/uint8_t b) (cpp/cast cpp/uint8_t a)))
+  nil)
+
+(defn set-icon-scale! [s] (cpp/GuiSetIconScale (cpp/int s)) nil)
+
+;; -------------------------------------------------------------- controls
+;;
+;; Every one of these builds its Rectangle inline. `bounds` never escapes.
+
+(defn button! [x y w h text]
+  (= 1 (int (cpp/GuiButton (cpp/Rectangle (cpp/float x) (cpp/float y)
+                                          (cpp/float w) (cpp/float h))
+                           text))))
+
+(defn label-button! [x y w h text]
+  (= 1 (int (cpp/GuiLabelButton (cpp/Rectangle (cpp/float x) (cpp/float y)
+                                               (cpp/float w) (cpp/float h))
+                                text))))
+
+(defn label! [x y w h text]
+  (cpp/GuiLabel (cpp/Rectangle (cpp/float x) (cpp/float y)
+                               (cpp/float w) (cpp/float h))
+                text)
+  nil)
+
+(defn line! [x y w h text]
+  (cpp/GuiLine (cpp/Rectangle (cpp/float x) (cpp/float y)
+                              (cpp/float w) (cpp/float h))
+               text)
+  nil)
+
+(defn panel! [x y w h text]
+  (cpp/GuiPanel (cpp/Rectangle (cpp/float x) (cpp/float y)
+                               (cpp/float w) (cpp/float h))
+                text)
+  nil)
+
+(defn group-box! [x y w h text]
+  (cpp/GuiGroupBox (cpp/Rectangle (cpp/float x) (cpp/float y)
+                                  (cpp/float w) (cpp/float h))
+                   text)
+  nil)
+
+(defn status-bar! [x y w h text]
+  (cpp/GuiStatusBar (cpp/Rectangle (cpp/float x) (cpp/float y)
+                                   (cpp/float w) (cpp/float h))
+                    text)
+  nil)
+
+(defn dummy-rec! [x y w h text]
+  (cpp/GuiDummyRec (cpp/Rectangle (cpp/float x) (cpp/float y)
+                                  (cpp/float w) (cpp/float h))
+                   text)
+  nil)
+
+(defn window-box!
+  "Non-zero (truthy here) when the close button was pressed."
+  [x y w h title]
+  (= 1 (int (cpp/GuiWindowBox (cpp/Rectangle (cpp/float x) (cpp/float y)
+                                             (cpp/float w) (cpp/float h))
+                              title))))
+
+;; --- cell out-params (bool *, int *, float *) ---
+
+(defn toggle! [x y w h text cell]
+  (int (cpp/GuiToggle (cpp/Rectangle (cpp/float x) (cpp/float y)
+                                     (cpp/float w) (cpp/float h))
+                      text (cpp/unbox (:* cpp/bool) cell))))
+
+(defn toggle-group! [x y w h text cell]
+  (int (cpp/GuiToggleGroup (cpp/Rectangle (cpp/float x) (cpp/float y)
+                                          (cpp/float w) (cpp/float h))
+                           text (cpp/unbox (:* cpp/int) cell))))
+
+(defn toggle-slider! [x y w h text cell]
+  (int (cpp/GuiToggleSlider (cpp/Rectangle (cpp/float x) (cpp/float y)
+                                           (cpp/float w) (cpp/float h))
+                            text (cpp/unbox (:* cpp/int) cell))))
+
+(defn checkbox! [x y w h text cell]
+  (int (cpp/GuiCheckBox (cpp/Rectangle (cpp/float x) (cpp/float y)
+                                       (cpp/float w) (cpp/float h))
+                        text (cpp/unbox (:* cpp/bool) cell))))
+
+(defn combo-box! [x y w h text cell]
+  (int (cpp/GuiComboBox (cpp/Rectangle (cpp/float x) (cpp/float y)
+                                       (cpp/float w) (cpp/float h))
+                        text (cpp/unbox (:* cpp/int) cell))))
+
+(defn slider! [x y w h left right cell mn mx]
+  (int (cpp/GuiSlider (cpp/Rectangle (cpp/float x) (cpp/float y)
+                                     (cpp/float w) (cpp/float h))
+                      left right (cpp/unbox (:* cpp/float) cell)
+                      (cpp/float mn) (cpp/float mx))))
+
+(defn slider-bar! [x y w h left right cell mn mx]
+  (int (cpp/GuiSliderBar (cpp/Rectangle (cpp/float x) (cpp/float y)
+                                        (cpp/float w) (cpp/float h))
+                         left right (cpp/unbox (:* cpp/float) cell)
+                         (cpp/float mn) (cpp/float mx))))
+
+(defn progress-bar! [x y w h left right cell mn mx]
+  (int (cpp/GuiProgressBar (cpp/Rectangle (cpp/float x) (cpp/float y)
+                                          (cpp/float w) (cpp/float h))
+                           left right (cpp/unbox (:* cpp/float) cell)
+                           (cpp/float mn) (cpp/float mx))))
+
+;; --- controls whose edit mode is a PLAIN BOOL, not a cell ---
+;;
+;; The caller owns the mode and toggles it on a non-zero return. Passing a
+;; cell here compiles (pointer converts to bool) and pins the control open.
+
+(defn dropdown-box! [x y w h text cell edit?]
+  (int (cpp/GuiDropdownBox (cpp/Rectangle (cpp/float x) (cpp/float y)
+                                          (cpp/float w) (cpp/float h))
+                           text (cpp/unbox (:* cpp/int) cell) (cpp/bool edit?))))
+
+(defn spinner! [x y w h text cell mn mx edit?]
+  (int (cpp/GuiSpinner (cpp/Rectangle (cpp/float x) (cpp/float y)
+                                      (cpp/float w) (cpp/float h))
+                       text (cpp/unbox (:* cpp/int) cell)
+                       (cpp/int mn) (cpp/int mx) (cpp/bool edit?))))
+
+(defn value-box! [x y w h text cell mn mx edit?]
+  (int (cpp/GuiValueBox (cpp/Rectangle (cpp/float x) (cpp/float y)
+                                       (cpp/float w) (cpp/float h))
+                        text (cpp/unbox (:* cpp/int) cell)
+                        (cpp/int mn) (cpp/int mx) (cpp/bool edit?))))
+
+(defn text-box! [x y w h cell cap edit?]
+  (int (cpp/GuiTextBox (cpp/Rectangle (cpp/float x) (cpp/float y)
+                                      (cpp/float w) (cpp/float h))
+                       (cpp/unbox (:* cpp/char) cell) (cpp/int cap)
+                       (cpp/bool edit?))))
+
+;; --- collections ---
+
+(defn list-view! [x y w h text scroll-cell active-cell]
+  (int (cpp/GuiListView (cpp/Rectangle (cpp/float x) (cpp/float y)
+                                       (cpp/float w) (cpp/float h))
+                        text
+                        (cpp/unbox (:* cpp/int) scroll-cell)
+                        (cpp/unbox (:* cpp/int) active-cell))))
+
+(defn tab-bar!
+  "Returns the index of a tab whose close button was pressed, or -1.
+   That is distinct from a selection change, which lands in active-cell."
+  [x y w h text hscroll-cell active-cell]
+  (int (cpp/GuiTabBar (cpp/Rectangle (cpp/float x) (cpp/float y)
+                                     (cpp/float w) (cpp/float h))
+                      text
+                      (cpp/unbox (:* cpp/int) hscroll-cell)
+                      (cpp/unbox (:* cpp/int) active-cell))))
+
+;; --- dialogs ---
+
+(defn message-box!
+  "btn-text is ';'-separated. Returns the pressed button index, -1 while open,
+   or 0 for the window close button."
+  [x y w h title message btn-text active-cell]
+  (int (cpp/GuiMessageBox (cpp/Rectangle (cpp/float x) (cpp/float y)
+                                         (cpp/float w) (cpp/float h))
+                          title message btn-text
+                          (cpp/unbox (:* cpp/int) active-cell))))
+
+(defn text-input-box!
+  "The one control whose bounds travel as a [x y w h] vector rather than four
+   parameters: with them spread it needs 11, and a jank fn caps at 10."
+  [bounds title message text-cell cap btn-text active-cell secret-cell]
+  (int (cpp/GuiTextInputBox (cpp/Rectangle (cpp/float (nth bounds 0))
+                                           (cpp/float (nth bounds 1))
+                                           (cpp/float (nth bounds 2))
+                                           (cpp/float (nth bounds 3)))
+                            title message
+                            (cpp/unbox (:* cpp/char) text-cell) (cpp/int cap)
+                            btn-text
+                            (cpp/unbox (:* cpp/int) active-cell)
+                            (cpp/unbox (:* cpp/bool) secret-cell))))
+
+;; --- colour ---
+
+(defn color-picker! [x y w h text cell]
+  (int (cpp/GuiColorPicker (cpp/Rectangle (cpp/float x) (cpp/float y)
+                                          (cpp/float w) (cpp/float h))
+                           text (cpp/unbox (:* cpp/Color) cell))))
+
+(defn color-panel! [x y w h text cell]
+  (int (cpp/GuiColorPanel (cpp/Rectangle (cpp/float x) (cpp/float y)
+                                         (cpp/float w) (cpp/float h))
+                          text (cpp/unbox (:* cpp/Color) cell))))
+
+(defn color-bar-alpha! [x y w h text cell]
+  (int (cpp/GuiColorBarAlpha (cpp/Rectangle (cpp/float x) (cpp/float y)
+                                            (cpp/float w) (cpp/float h))
+                             text (cpp/unbox (:* cpp/float) cell))))
+
+(defn color-bar-hue! [x y w h text cell]
+  (int (cpp/GuiColorBarHue (cpp/Rectangle (cpp/float x) (cpp/float y)
+                                          (cpp/float w) (cpp/float h))
+                           text (cpp/unbox (:* cpp/float) cell))))
+
+(defn color-picker-hsv! [x y w h text cell]
+  (int (cpp/GuiColorPickerHSV (cpp/Rectangle (cpp/float x) (cpp/float y)
+                                             (cpp/float w) (cpp/float h))
+                              text (cpp/unbox (:* cpp/Vector3) cell))))
+
+(defn color-panel-hsv! [x y w h text cell]
+  (int (cpp/GuiColorPanelHSV (cpp/Rectangle (cpp/float x) (cpp/float y)
+                                            (cpp/float w) (cpp/float h))
+                             text (cpp/unbox (:* cpp/Vector3) cell))))
+
+;; --- grid and scroll panel ---
+
+(defn grid! [x y w h text spacing subdivs mouse-cell]
+  (int (cpp/GuiGrid (cpp/Rectangle (cpp/float x) (cpp/float y)
+                                   (cpp/float w) (cpp/float h))
+                    text (cpp/float spacing) (cpp/int subdivs)
+                    (cpp/unbox (:* cpp/Vector2) mouse-cell))))
+
+(defn scroll-panel!
+  "Returns the visible view rectangle as a plain [x y w h] jank vector.
+
+   The Rectangle * out-param cannot be returned across a fn boundary, so the
+   wrapper reads its four floats out here and hands back numbers."
+  [x y w h text cx cy cw ch scroll-cell]
+  (let [view (cpp/new cpp/Rectangle)]
+    (cpp/GuiScrollPanel (cpp/Rectangle (cpp/float x) (cpp/float y)
+                                       (cpp/float w) (cpp/float h))
+                        text
+                        (cpp/Rectangle (cpp/float cx) (cpp/float cy)
+                                       (cpp/float cw) (cpp/float ch))
+                        (cpp/unbox (:* cpp/Vector2) scroll-cell)
+                        view)
+    [(+ 0.0 (.-x (cpp/* view))) (+ 0.0 (.-y (cpp/* view)))
+     (+ 0.0 (.-width (cpp/* view))) (+ 0.0 (.-height (cpp/* view)))]))
