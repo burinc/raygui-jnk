@@ -1,0 +1,92 @@
+(ns net.b12n.raygui-jnk.raylib
+  "Window lifecycle and the headless-verification helpers every example shares.
+
+  rlgl.h is included for rlDrawRenderBatchActive, which is NOT optional before
+  a screenshot: raylib defers batched geometry until EndDrawing, so a mid-frame
+  TakeScreenshot of a GUI captures a blank white frame."
+  (:require [clojure.string :as str])
+  (:include "raylib.h" "rlgl.h" "stdlib.h" "stdio.h"))
+
+(defn getenv-str
+  "An environment variable as a jank string, or nil when unset or empty.
+
+   getenv returns char*, which is NULL when unset -- converting that to a jank
+   string is not safe, so the null check happens on the native side first.
+
+   The check is a cast to bool, not a comparison with nullptr: jank rejects
+   `!=` between 'char *' and 'std::nullptr_t'."
+  [name]
+  (let [p (cpp/getenv name)]
+    (when (cpp/cast cpp/bool p)
+      (let [s (str (cpp/cast (:* (:const cpp/char)) p))]
+        (when (seq s) s)))))
+
+(defn auto-quit-ms
+  "RAYGUI_APP_AUTO_QUIT_MS as a number, or nil.
+
+   Lets the check and screenshot gates run an example to completion without a
+   human closing the window."
+  []
+  (when-let [s (getenv-str "RAYGUI_APP_AUTO_QUIT_MS")]
+    (parse-long s)))
+
+(defn shot-path
+  "RAYGUI_APP_SHOT, or nil."
+  []
+  (getenv-str "RAYGUI_APP_SHOT"))
+
+(defn maybe-screenshot!
+  "Flush the render batch, then capture to `path`.
+
+   Two raylib behaviours make this less trivial than it looks, and BOTH fail
+   silently with a zero exit code:
+
+   1. raylib defers batched geometry until EndDrawing, so a capture taken
+      mid-frame without rlDrawRenderBatchActive writes a blank white frame.
+
+   2. TakeScreenshot resolves its argument against CORE.Storage.basePath, a
+      path fixed at InitWindow -- NOT the live working directory, so
+      ChangeDirectory cannot redirect it. An absolute `/tmp/x.png` becomes
+      `<basePath>//tmp/x.png`, which cannot be created; raylib logs
+      `Screenshot could not be saved` at WARNING and the process still exits
+      0, so the gate passes with no PNG.
+
+      So capture by basename, where basePath resolves cleanly, then rename the
+      result to where the caller asked for it.
+
+   Call between drawing and EndDrawing."
+  [path]
+  (when path
+    (cpp/rlDrawRenderBatchActive)
+    (let [i    (str/last-index-of path "/")
+          base (if i (subs path (inc i)) path)
+          cwd  (str (cpp/GetWorkingDirectory))]
+      (cpp/TakeScreenshot base)
+      (when i
+        (cpp/rename (str cwd "/" base) path))))
+  nil)
+
+(defn styles-path
+  "Anchors an .rgs filename against the vendored styles directory.
+
+   LoadFileData resolves relative to the process working directory, so a bare
+   filename works under `bb <example>` from the repo root and silently loads
+   nothing anywhere else. RAYGUI_STYLES_DIR overrides for callers outside the
+   repo."
+  [filename]
+  (str (or (getenv-str "RAYGUI_STYLES_DIR")
+           "raygui-sys/vendor/styles")
+       "/" filename))
+
+(defn elapsed-ms
+  "Milliseconds since InitWindow, as a jank double."
+  []
+  (* 1000.0 (+ 0.0 (cpp/GetTime))))
+
+(defn keep-running?
+  "The shared frame-loop predicate: window open, Q not held, deadline unmet."
+  [deadline]
+  (and (cpp/! (cpp/WindowShouldClose))
+       (cpp/! (cpp/IsKeyDown cpp/KEY_Q))
+       (or (nil? deadline)
+           (< (elapsed-ms) deadline))))
