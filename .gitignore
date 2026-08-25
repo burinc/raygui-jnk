@@ -5,3 +5,4 @@ pom.xml
 !docs/**/*.png
 .nrepl-port
 .DS_Store
+.clj-kondo/.cache/
