@@ -1,0 +1,31 @@
+(ns net.b12n.raygui-jnk.basic-controls
+  "raygui [basics] - button, label and a live click counter.
+
+  The suite's reference example: it establishes the frame loop, the auto-quit
+  and screenshot hooks, and the cell pattern every other example follows."
+  (:require [net.b12n.raygui-jnk.raygui :as g]
+            [net.b12n.raygui-jnk.raylib :as rl])
+  (:include "raylib.h" "rlgl.h"))
+
+(def WIDTH 420)
+(def HEIGHT 220)
+
+(defn -main [& args]
+  (cpp/InitWindow WIDTH HEIGHT "raygui [basics] - basic controls (jank)")
+  (cpp/SetTargetFPS 60)
+  (let [deadline (rl/auto-quit-ms)
+        shot     (rl/shot-path)
+        clicks   (g/icell 0)]
+    (println "auto-quit-ms:" deadline "  shot:" shot)
+    (loop [frame 0]
+      (cpp/BeginDrawing)
+      (g/clear-to-style! cpp/DEFAULT cpp/BACKGROUND_COLOR)
+      (when (g/button! 20.0 20.0 160.0 32.0 "Click me")
+        (g/ireset! clicks (inc (g/ivalue clicks))))
+      (g/label! 20.0 70.0 300.0 24.0 (str "clicks: " (g/ivalue clicks)))
+      (g/status-bar! 0.0 (- HEIGHT 24.0) (+ 0.0 WIDTH) 24.0 "raygui-jnk")
+      (when (zero? frame) (rl/maybe-screenshot! shot))
+      (cpp/EndDrawing)
+      (when (rl/keep-running? deadline)
+        (recur (inc frame)))))
+  (cpp/CloseWindow))
