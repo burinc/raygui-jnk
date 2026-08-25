@@ -113,8 +113,25 @@
             "clj-kondo" "--lint" files))}
 
   sys:install
-  {:doc "Install raygui-sys to ~/.m2 (rebuild after editing the wrapper)"
-   :task (lein sys-dir ["install"])}
+  {:doc "Install raygui-sys to ~/.m2 (run after editing the wrapper)"
+   ;; Also drops the consuming project's cached build output for this package.
+   ;;
+   ;; lein-jank keys a dependency's out-dir on (fingerprint subtree-ops) --
+   ;; the fingerprint of its DESCENDANTS' build ops, not of its own source.
+   ;; So changing this package's C source produces a new jar and a freshly
+   ;; extracted source dir, but out-dir is unchanged, is-already-built? still
+   ;; sees its cache file, and jank-build.bb never runs: the stale
+   ;; libraygui.dylib is reused with no warning. Measured 2026-08-26.
+   ;;
+   ;; Editing the .jank sources is unaffected -- those are compiled from the
+   ;; re-extracted classpath every run. This only bites vendored C.
+   :task
+   (do
+     (lein sys-dir ["install"])
+     (doseq [d (fs/glob (fs/path examples-dir "target" "_cache")
+                        "raygui-sys-*" {:max-depth 1})]
+       (println (str "  dropping stale build output " (fs/file-name d)))
+       (fs/delete-tree d)))}
 
   run
   {:doc "Run an example by name: bb run basic-controls"
