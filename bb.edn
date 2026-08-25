@@ -1,0 +1,151 @@
+;; raygui-jnk task runner.
+;;
+;;   bb examples            the suite, grouped, with the 49-char cap enforced
+;;   bb check               compile every example headless -- the fast gate
+;;   bb lint                clj-kondo
+;;   bb <example-name>      run one, windowed
+;;   bb run <name>          same, by argument
+;;   bb shot <name> [ms]    run headless and screenshot to /tmp/<name>.png
+;;   bb sys:install         lein install raygui-sys to ~/.m2
+;;   bb hooks:install       pre-commit hook
+;;
+;; NOTE: task bodies are read by babashka's EDN reader, which does NOT support
+;; #"regex", @deref, or #(...) reader macros -- use (re-pattern "..."),
+;; (deref ...) and (fn [x] ...). Run `bb tasks` after editing to confirm the
+;; file still parses.
+;;
+;; NOTE: every lein invocation passes --disable-sandbox. macOS has no bwrap,
+;; so lein-jank's build sandbox cannot work there at all.
+{:min-bb-version "1.3.0"
+ :paths ["scripts"]
+
+ :tasks
+ {:init
+  (do
+    (require '[babashka.fs :as fs]
+             '[babashka.process :as proc]
+             '[clojure.string :as str]
+             '[clojure.edn :as edn]
+             '[examples-registry :as reg])
+
+    (def repo-root (str (fs/parent (fs/absolutize "bb.edn"))))
+    (def examples-dir (str (fs/path repo-root "raygui-examples")))
+    (def sys-dir (str (fs/path repo-root "raygui-sys")))
+
+    ;; proc/shell with an opts map treats a following vector as ONE argument
+    ;; ("[lein"), so the command must be applied, not passed as a vector.
+    ;; LEIN overrides the executable, for a PATH lein that cannot bootstrap.
+    (def lein-bin (or (System/getenv "LEIN") "lein"))
+
+    (defn lein [dir args]
+      (apply proc/shell {:dir dir} lein-bin args))
+
+    (defn run-example
+      "Runs one example windowed. Q or the window close button quits."
+      [name]
+      (lein examples-dir ["with-profile" (str "+" name) "run" "--disable-sandbox"]))
+
+    (defn shot-example
+      "Runs one example headless and screenshots it.
+
+       The PNG is the gate for this project: a control at wrong bounds, or a
+       style that silently failed to load, compiles clean and passes check."
+      [name ms]
+      (let [out (str "/tmp/" name ".png")]
+        (fs/delete-if-exists out)
+        (apply proc/shell
+               {:dir examples-dir
+                :extra-env {"RAYGUI_APP_AUTO_QUIT_MS" (str ms)
+                            "RAYGUI_APP_SHOT" out
+                            "RAYGUI_STYLES_DIR" (str (fs/path sys-dir "vendor" "styles"))}}
+               lein-bin ["with-profile" (str "+" name) "run" "--disable-sandbox"])
+        (if (fs/exists? out)
+          (println (str "  wrote " out))
+          (do (binding [*out* *err*]
+                (println (str "  NO SCREENSHOT for " name " -- look at the log above")))
+              (System/exit 1)))))
+
+    (defn registered-names [] (mapv (fn [r] (nth r 0)) reg/examples))
+
+    (defn task-names
+      "The task keys declared in this file. bb.edn is itself EDN, so it can be
+       read back rather than introspected through the runtime."
+      []
+      (set (map name (keys (:tasks (edn/read-string (slurp (str (fs/path repo-root "bb.edn"))))))))))
+
+  examples
+  {:doc "Every example with its description, grouped"
+   :task
+   (let [w (reg/max-name-width)
+         over (reg/check-descriptions)
+         tasks (task-names)]
+     (doseq [g reg/groups]
+       (println (str "  " g))
+       (doseq [row (get (reg/by-group) g)]
+         (println (str "    " (reg/pad (nth row 0) w) "  " (nth row 3))))
+       (println ""))
+     (println (str "  " (count reg/examples) " examples in " (count reg/groups) " groups"))
+     (let [pending (remove tasks (registered-names))]
+       (when (seq pending)
+         (println (str "  " (count pending) " not yet ported: " (str/join ", " pending)))))
+     (when (seq over)
+       (binding [*out* *err*]
+         (println "")
+         (println "Descriptions over the 49-character cap:")
+         (doseq [[n len] over] (println (str "  " n " (" len ")")))
+         (System/exit 1))))}
+
+  check
+  {:doc "Compile every ported example, headless"
+   :task (lein examples-dir ["with-profile" "+check" "run" "--disable-sandbox"])}
+
+  lint
+  {:doc "clj-kondo over both projects"
+   ;; clj-kondo does NOT discover .jank files: --lint on a directory scans for
+   ;; .clj/.cljs/.cljc, finds nothing, and reports "0 warnings" very fast --
+   ;; a green gate that linted nothing at all. Pass every file explicitly.
+   :task
+   (let [files (concat (map str (fs/glob repo-root "raygui-sys/src/**/*.jank"))
+                       (map str (fs/glob repo-root "raygui-examples/src/**/*.jank"))
+                       (map str (fs/glob repo-root "scripts/**.clj")))]
+     (println (str "linting " (count files) " files"))
+     (apply proc/shell {:dir repo-root :continue true}
+            "clj-kondo" "--lint" files))}
+
+  sys:install
+  {:doc "Install raygui-sys to ~/.m2 (rebuild after editing the wrapper)"
+   :task (lein sys-dir ["install"])}
+
+  run
+  {:doc "Run an example by name: bb run basic-controls"
+   :override-builtin true
+   :task (let [n (first *command-line-args*)]
+           (if n
+             (run-example n)
+             (do (binding [*out* *err*] (println "usage: bb run <example-name>"))
+                 (System/exit 1))))}
+
+  shot
+  {:doc "Screenshot an example: bb shot basic-controls [ms]"
+   :task (let [n (first *command-line-args*)
+               ms (or (second *command-line-args*) "1200")]
+           (if n
+             (shot-example n ms)
+             (do (binding [*out* *err*] (println "usage: bb shot <example-name> [ms]"))
+                 (System/exit 1))))}
+
+  hooks:install
+  {:doc "Install a pre-commit hook running bb lint"
+   :task
+   (let [p (fs/path repo-root ".git" "hooks" "pre-commit")]
+     (spit (str p) "#!/bin/sh\nexec bb lint\n")
+     (fs/set-posix-file-permissions p "rwxr-xr-x")
+     (println (str "installed " p)))}
+
+  ;; ------------------------------------------------------------- examples
+  ;; One task per ported example. The :doc must match the registry
+  ;; description exactly; `bb examples` lists any registry row with no task.
+
+  basic-controls
+  {:doc "button, label and a live click counter"
+   :task (run-example "basic-controls")}}}

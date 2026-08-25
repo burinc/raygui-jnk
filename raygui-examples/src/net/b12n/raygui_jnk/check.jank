@@ -1,0 +1,19 @@
+(ns net.b12n.raygui-jnk.check
+  "The headless compile gate.
+
+  Requiring an example namespace compiles it without running its -main, so
+  this one namespace compiles the whole suite and opens no window. In jank
+  that is a real compile, not a load: it catches the codegen failures no
+  reader-level syntax check can see.
+
+  Every example must be added here as it lands. `bb examples` reports any
+  registry row whose namespace is missing from this list."
+  (:require [net.b12n.raygui-jnk.basic-controls]))
+
+(def required
+  "The namespaces this gate covers, for `bb check` to report against."
+  ['net.b12n.raygui-jnk.basic-controls])
+
+(defn -main [& args]
+  (println (str "check: " (count required) " example namespaces compiled"))
+  (doseq [n required] (println (str "  " n))))
