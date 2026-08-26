@@ -5,7 +5,8 @@
   index and the active row. The list here is longer than the box so it
   actually scrolls, and the scroll cell is seeded non-zero so the screenshot
   proves it is wired rather than merely present."
-  (:require [net.b12n.raygui-jnk.raygui :as g]
+  (:require [clojure.string :as string]
+            [net.b12n.raygui-jnk.raygui :as g]
             [net.b12n.raygui-jnk.raylib :as rl])
   (:include "raylib.h" "rlgl.h"))
 
@@ -25,7 +26,7 @@
         ;; unwired one.
         scroll   (g/icell 3)
         active   (g/icell 5)
-        joined   (clojure.string/join ";" rows)]
+        joined   (string/join ";" rows)]
     (loop [frame 0]
       (cpp/BeginDrawing)
       (g/clear-background!)

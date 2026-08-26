@@ -119,8 +119,13 @@
                        (map str (fs/glob repo-root "raygui-examples/src/**/*.jank"))
                        (map str (fs/glob repo-root "scripts/**.clj")))]
      (println (str "linting " (count files) " files"))
-     (apply proc/shell {:dir repo-root :continue true}
-            "clj-kondo" "--lint" files))}
+     ;; clj-kondo exits 0 clean, 2 on warnings, 3 on errors. Without this the
+     ;; task succeeds on warnings and the pre-commit hook waves them through --
+     ;; which it did, letting two unresolved-namespace warnings land.
+     (let [{:keys [exit]} (apply proc/shell {:dir repo-root :continue true}
+                                 "clj-kondo" "--lint" files)]
+       (when-not (zero? exit)
+         (System/exit exit))))}
 
   sys:install
   {:doc "Install raygui-sys to ~/.m2 (run after editing the wrapper)"
