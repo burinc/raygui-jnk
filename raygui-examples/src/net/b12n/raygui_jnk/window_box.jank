@@ -1,0 +1,49 @@
+(ns net.b12n.raygui-jnk.window-box
+  "raygui [containers] - a window box you can close and reopen.
+
+  GuiWindowBox draws a titled frame with a close button and returns non-zero
+  when that button is pressed. It does not manage its own visibility, so the
+  caller keeps a bool cell and a way back: closing hides it, and a button
+  underneath brings it back."
+  (:require [net.b12n.raygui-jnk.raygui :as g]
+            [net.b12n.raygui-jnk.raylib :as rl])
+  (:include "raylib.h" "rlgl.h"))
+
+(def WIDTH 460)
+(def HEIGHT 300)
+
+(defn -main [& args]
+  (cpp/InitWindow WIDTH HEIGHT "raygui [containers] - window box (jank)")
+  (cpp/SetTargetFPS 60)
+  (let [deadline (rl/auto-quit-ms)
+        shot     (rl/shot-path)
+        open?    (g/bcell true)
+        closes   (g/icell 0)
+        volume   (g/fcell 0.4)]
+    (loop [frame 0]
+      (cpp/BeginDrawing)
+      (g/clear-background!)
+
+      (g/label! 20.0 14.0 420.0 20.0 "The window owns nothing but its close button:")
+
+      (if (g/bvalue open?)
+        (do
+          (when (g/window-box! 60.0 46.0 340.0 190.0 "Preferences")
+            (g/breset! open? false)
+            (g/ireset! closes (inc (g/ivalue closes))))
+          ;; Contents are the caller's job: a window box does not clip.
+          (g/label! 80.0 92.0 300.0 20.0 "Output volume")
+          (g/slider-bar! 80.0 116.0 300.0 22.0 nil nil volume 0.0 1.0)
+          (g/label! 80.0 150.0 300.0 20.0 "raygui does not clip these children;")
+          (g/label! 80.0 174.0 300.0 20.0 "the caller places them inside."))
+        (when (g/button! 160.0 120.0 140.0 36.0 "Reopen window")
+          (g/breset! open? true)))
+
+      (g/status-bar! 0.0 (- HEIGHT 24.0) (+ 0.0 WIDTH) 24.0
+                     (str "  closed " (g/ivalue closes) " time(s)"))
+
+      (when (zero? frame) (rl/maybe-screenshot! shot))
+      (cpp/EndDrawing)
+      (when (rl/keep-running? deadline)
+        (recur (inc frame)))))
+  (cpp/CloseWindow))

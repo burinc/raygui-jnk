@@ -20,4 +20,8 @@
              :combo-box          {:main net.b12n.raygui-jnk.combo-box}
              :list-view          {:main net.b12n.raygui-jnk.list-view}
              :list-view-ex       {:main net.b12n.raygui-jnk.list-view-ex}
-             :tab-bar            {:main net.b12n.raygui-jnk.tab-bar}})
+             :tab-bar            {:main net.b12n.raygui-jnk.tab-bar}
+             :panel-group-box    {:main net.b12n.raygui-jnk.panel-group-box}
+             :scroll-panel       {:main net.b12n.raygui-jnk.scroll-panel}
+             :window-box         {:main net.b12n.raygui-jnk.window-box}
+             :floating-window    {:main net.b12n.raygui-jnk.floating-window}})

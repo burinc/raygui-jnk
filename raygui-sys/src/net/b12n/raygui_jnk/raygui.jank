@@ -350,23 +350,39 @@
                                        (cpp/float w) (cpp/float h))
                         text (cpp/unbox (:* cpp/int) cell))))
 
+;; The slider family takes TWO optional captions (textLeft, textRight), which
+;; opt-text does not cover -- it handles a single caption in the first
+;; position, and two would need four call sites.
+;;
+;; They take "" instead. That is not a fudge: raygui guards each caption with
+;; `if (textLeft != NULL)` around a draw whose bounds are
+;; GuiGetTextWidth(textLeft), and GuiGetTextWidth("") is 0 because its scan
+;; loop exits immediately on the terminator. An empty caption therefore
+;; reserves no space and draws nothing -- visually identical to NULL, at the
+;; cost of one no-op call.
+
+(defn- or-empty [s] (if s s ""))
+
 (defn slider! [x y w h left right cell mn mx]
-  (int (cpp/GuiSlider (cpp/Rectangle (cpp/float x) (cpp/float y)
-                                     (cpp/float w) (cpp/float h))
-                      left right (cpp/unbox (:* cpp/float) cell)
-                      (cpp/float mn) (cpp/float mx))))
+  (let [left (or-empty left) right (or-empty right)]
+    (int (cpp/GuiSlider (cpp/Rectangle (cpp/float x) (cpp/float y)
+                                       (cpp/float w) (cpp/float h))
+                        left right (cpp/unbox (:* cpp/float) cell)
+                        (cpp/float mn) (cpp/float mx)))))
 
 (defn slider-bar! [x y w h left right cell mn mx]
-  (int (cpp/GuiSliderBar (cpp/Rectangle (cpp/float x) (cpp/float y)
-                                        (cpp/float w) (cpp/float h))
-                         left right (cpp/unbox (:* cpp/float) cell)
-                         (cpp/float mn) (cpp/float mx))))
-
-(defn progress-bar! [x y w h left right cell mn mx]
-  (int (cpp/GuiProgressBar (cpp/Rectangle (cpp/float x) (cpp/float y)
+  (let [left (or-empty left) right (or-empty right)]
+    (int (cpp/GuiSliderBar (cpp/Rectangle (cpp/float x) (cpp/float y)
                                           (cpp/float w) (cpp/float h))
                            left right (cpp/unbox (:* cpp/float) cell)
-                           (cpp/float mn) (cpp/float mx))))
+                           (cpp/float mn) (cpp/float mx)))))
+
+(defn progress-bar! [x y w h left right cell mn mx]
+  (let [left (or-empty left) right (or-empty right)]
+    (int (cpp/GuiProgressBar (cpp/Rectangle (cpp/float x) (cpp/float y)
+                                            (cpp/float w) (cpp/float h))
+                             left right (cpp/unbox (:* cpp/float) cell)
+                             (cpp/float mn) (cpp/float mx)))))
 
 ;; --- controls whose edit mode is a PLAIN BOOL, not a cell ---
 ;;

@@ -232,4 +232,20 @@
 
   tab-bar
   {:doc "tabs with close requests"
-   :task (run-example "tab-bar")}}}
+   :task (run-example "tab-bar")}
+
+  panel-group-box
+  {:doc "panels and group boxes as containers"
+   :task (run-example "panel-group-box")}
+
+  scroll-panel
+  {:doc "a scroll panel over oversized content"
+   :task (run-example "scroll-panel")}
+
+  window-box
+  {:doc "a window box you can close and reopen"
+   :task (run-example "window-box")}
+
+  floating-window
+  {:doc "two draggable floating windows"
+   :task (run-example "floating-window")}}}

@@ -21,7 +21,11 @@
             [net.b12n.raygui-jnk.combo-box]
             [net.b12n.raygui-jnk.list-view]
             [net.b12n.raygui-jnk.list-view-ex]
-            [net.b12n.raygui-jnk.tab-bar]))
+            [net.b12n.raygui-jnk.tab-bar]
+            [net.b12n.raygui-jnk.panel-group-box]
+            [net.b12n.raygui-jnk.scroll-panel]
+            [net.b12n.raygui-jnk.window-box]
+            [net.b12n.raygui-jnk.floating-window]))
 
 (def required
   "The namespaces this gate covers, for `bb check` to report against."
@@ -38,7 +42,11 @@
    'net.b12n.raygui-jnk.combo-box
    'net.b12n.raygui-jnk.list-view
    'net.b12n.raygui-jnk.list-view-ex
-   'net.b12n.raygui-jnk.tab-bar])
+   'net.b12n.raygui-jnk.tab-bar
+   'net.b12n.raygui-jnk.panel-group-box
+   'net.b12n.raygui-jnk.scroll-panel
+   'net.b12n.raygui-jnk.window-box
+   'net.b12n.raygui-jnk.floating-window])
 
 (defn -main [& args]
   (println (str "check: " (count required) " example namespaces compiled"))

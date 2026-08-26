@@ -1,0 +1,81 @@
+(ns net.b12n.raygui-jnk.scroll-panel
+  "raygui [containers] - a scroll panel over oversized content.
+
+  A port of raygui's own examples/controls/scroll_panel.c.
+
+  GuiScrollPanel is the only control in the suite with a Rectangle OUT-param:
+  it reports the visible view back to the caller. A native struct cannot be
+  returned across a jank fn boundary, so g/scroll-panel! reads its four floats
+  out and hands back a plain [x y w h] vector.
+
+  The scroll offset is a Vector2 cell. The content is deliberately larger than
+  the panel so the scrollbars have something to do, and the view rectangle is
+  used to scissor the drawing -- which is what proves the out-param is live
+  rather than merely present."
+  (:require [net.b12n.raygui-jnk.raygui :as g]
+            [net.b12n.raygui-jnk.raylib :as rl])
+  (:include "raylib.h" "rlgl.h"))
+
+(def WIDTH 560)
+(def HEIGHT 380)
+
+(def CONTENT-W 640.0)
+(def CONTENT-H 520.0)
+
+(defn -main [& args]
+  (cpp/InitWindow WIDTH HEIGHT "raygui [containers] - scroll panel (jank)")
+  (cpp/SetTargetFPS 60)
+  (let [deadline (rl/auto-quit-ms)
+        shot     (rl/shot-path)
+        ;; seeded off-origin so the screenshot shows a scrolled state
+        scroll   (g/v2cell -90.0 -60.0)]
+    (loop [frame 0]
+      (cpp/BeginDrawing)
+      (g/clear-background!)
+
+      (g/label! 20.0 12.0 520.0 20.0
+                (str "content " (int CONTENT-W) "x" (int CONTENT-H)
+                     " inside a 400x260 panel:"))
+
+      (let [view (g/scroll-panel! 20.0 38.0 400.0 260.0 "Oversized content"
+                                  0.0 0.0 CONTENT-W CONTENT-H scroll)
+            off  (g/v2value scroll)
+            vx   (nth view 0) vy (nth view 1)
+            vw   (nth view 2) vh (nth view 3)]
+
+        ;; Scissor to the reported view, then draw content offset by scroll.
+        (cpp/BeginScissorMode (cpp/int (int vx)) (cpp/int (int vy))
+                              (cpp/int (int vw)) (cpp/int (int vh)))
+        (let [ox (+ vx (nth off 0))
+              oy (+ vy (nth off 1))]
+          (loop [r 0]
+            (when (< r 8)
+              (loop [c 0]
+                (when (< c 8)
+                  (let [x (+ ox (* c 78.0))
+                        y (+ oy (* r 62.0))
+                        on? (zero? (mod (+ r c) 2))]
+                    (cpp/DrawRectangle (cpp/int (int x)) (cpp/int (int y)) 74 58
+                                       (if on? cpp/SKYBLUE cpp/LIGHTGRAY))
+                    (cpp/DrawText (str r "," c) (cpp/int (int (+ x 8))) (cpp/int (int (+ y 8)))
+                                  10 cpp/DARKGRAY))
+                  (recur (inc c))))
+              (recur (inc r)))))
+        (cpp/EndScissorMode)
+
+        (g/label! 436.0 44.0 110.0 20.0 "view:")
+        (g/label! 436.0 66.0 110.0 20.0 (str "x " (int vx) " y " (int vy)))
+        (g/label! 436.0 88.0 110.0 20.0 (str "w " (int vw) " h " (int vh)))
+        (g/line! 436.0 112.0 110.0 12.0 nil)
+        (g/label! 436.0 128.0 110.0 20.0 "scroll:")
+        (g/label! 436.0 150.0 110.0 20.0 (str "x " (int (nth off 0))))
+        (g/label! 436.0 172.0 110.0 20.0 (str "y " (int (nth off 1)))))
+
+      (g/status-bar! 0.0 (- HEIGHT 24.0) (+ 0.0 WIDTH) 24.0
+                     "  the view rectangle is a Rectangle* out-param, read as floats")
+
+      (when (zero? frame) (rl/maybe-screenshot! shot))
+      (cpp/EndDrawing)
+      (when (rl/keep-running? deadline)
+        (recur (inc frame)))))
+  (cpp/CloseWindow))

@@ -1,0 +1,93 @@
+(ns net.b12n.raygui-jnk.floating-window
+  "raygui [containers] - two draggable floating windows.
+
+  A port of raygui's own examples/controls/floating_window.c.
+
+  Dragging is NOT a raygui feature. GuiWindowBox draws a title bar and a close
+  button; everything else -- press-inside-the-title-bar, track the offset,
+  move the window -- is the caller's. That state is per-window and lives in
+  float cells, because loop/recur cannot carry native values and there is
+  nowhere else for it to go.
+
+  NOT VERIFIED: the drag itself. The gate is headless, and synthetic clicks do
+  not actuate a raylib/GLFW app at all, so the screenshot proves layout and
+  z-order only. Drag behaviour has been exercised by hand, not by a test."
+  (:require [net.b12n.raygui-jnk.raygui :as g]
+            [net.b12n.raygui-jnk.raylib :as rl])
+  (:include "raylib.h" "rlgl.h"))
+
+(def WIDTH 560)
+(def HEIGHT 360)
+(def TITLEBAR-H 24.0)
+
+(defn drag-window!
+  "One window: title-bar drag, then draw. Returns true if it wants closing.
+
+  Bounds and drag state arrive as cells so this fn can mutate them; the
+  Rectangle itself is built inside g/window-box!, never here."
+  [wx wy w h title dragging? offx offy]
+  (let [mx (+ 0.0 (cpp/GetMouseX))
+        my (+ 0.0 (cpp/GetMouseY))
+        x  (g/fvalue wx)
+        y  (g/fvalue wy)]
+    (when (cpp/IsMouseButtonPressed cpp/MOUSE_BUTTON_LEFT)
+      (when (and (>= mx x) (<= mx (+ x w)) (>= my y) (<= my (+ y TITLEBAR-H)))
+        (g/breset! dragging? true)
+        (g/freset! offx (- mx x))
+        (g/freset! offy (- my y))))
+    (when (cpp/IsMouseButtonReleased cpp/MOUSE_BUTTON_LEFT)
+      (g/breset! dragging? false))
+    (when (g/bvalue dragging?)
+      (g/freset! wx (- mx (g/fvalue offx)))
+      (g/freset! wy (- my (g/fvalue offy))))
+    (g/window-box! (g/fvalue wx) (g/fvalue wy) w h title)))
+
+(defn -main [& args]
+  (cpp/InitWindow WIDTH HEIGHT "raygui [containers] - floating windows (jank)")
+  (cpp/SetTargetFPS 60)
+  (let [deadline (rl/auto-quit-ms)
+        shot     (rl/shot-path)
+        ax (g/fcell 40.0)  ay (g/fcell 60.0)
+        bx (g/fcell 230.0) by (g/fcell 150.0)
+        adrag (g/bcell false) aox (g/fcell 0.0) aoy (g/fcell 0.0)
+        bdrag (g/bcell false) box (g/fcell 0.0) boy (g/fcell 0.0)
+        aopen (g/bcell true)  bopen (g/bcell true)
+        level (g/fcell 0.5)   mute? (g/bcell false)]
+    (loop [frame 0]
+      (cpp/BeginDrawing)
+      (g/clear-background!)
+
+      (g/label! 20.0 12.0 520.0 20.0 "Drag either window by its title bar:")
+
+      ;; Drawn in order, so the second sits above the first.
+      (when (g/bvalue aopen)
+        (when (drag-window! ax ay 220.0 120.0 "Mixer" adrag aox aoy)
+          (g/breset! aopen false))
+        (g/label! (+ (g/fvalue ax) 16.0) (+ (g/fvalue ay) 40.0) 190.0 20.0 "Level")
+        (g/slider-bar! (+ (g/fvalue ax) 16.0) (+ (g/fvalue ay) 62.0)
+                       188.0 20.0 nil nil level 0.0 1.0)
+        (g/checkbox! (+ (g/fvalue ax) 16.0) (+ (g/fvalue ay) 90.0)
+                     18.0 18.0 "Mute" mute?))
+
+      (when (g/bvalue bopen)
+        (when (drag-window! bx by 240.0 140.0 "Inspector" bdrag box boy)
+          (g/breset! bopen false))
+        (g/label! (+ (g/fvalue bx) 16.0) (+ (g/fvalue by) 40.0) 210.0 20.0
+                  (str "level: " (int (* 100.0 (g/fvalue level))) "%"))
+        (g/label! (+ (g/fvalue bx) 16.0) (+ (g/fvalue by) 64.0) 210.0 20.0
+                  (str "muted: " (g/bvalue mute?)))
+        (g/label! (+ (g/fvalue bx) 16.0) (+ (g/fvalue by) 88.0) 210.0 20.0
+                  (str "at " (int (g/fvalue bx)) "," (int (g/fvalue by))))
+        (g/label! (+ (g/fvalue bx) 16.0) (+ (g/fvalue by) 112.0) 210.0 20.0
+                  "this window is drawn second"))
+
+      (when (and (not (g/bvalue aopen)) (not (g/bvalue bopen)))
+        (when (g/button! 200.0 160.0 160.0 36.0 "Reopen both")
+          (g/breset! aopen true)
+          (g/breset! bopen true)))
+
+      (when (zero? frame) (rl/maybe-screenshot! shot))
+      (cpp/EndDrawing)
+      (when (rl/keep-running? deadline)
+        (recur (inc frame)))))
+  (cpp/CloseWindow))

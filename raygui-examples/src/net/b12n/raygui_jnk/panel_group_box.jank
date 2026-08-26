@@ -1,0 +1,51 @@
+(ns net.b12n.raygui-jnk.panel-group-box
+  "raygui [containers] - panels and group boxes as containers.
+
+  Neither holds state or clips its children: they draw a background and a
+  frame, and the controls inside are positioned by the caller. A GuiPanel
+  with a nil title is a plain filled rectangle; with a title it gets a header
+  bar. A GuiGroupBox is an outline with its caption cut into the top edge."
+  (:require [net.b12n.raygui-jnk.raygui :as g]
+            [net.b12n.raygui-jnk.raylib :as rl])
+  (:include "raylib.h" "rlgl.h"))
+
+(def WIDTH 480)
+(def HEIGHT 320)
+
+(defn -main [& args]
+  (cpp/InitWindow WIDTH HEIGHT "raygui [containers] - panel and group box (jank)")
+  (cpp/SetTargetFPS 60)
+  (let [deadline (rl/auto-quit-ms)
+        shot     (rl/shot-path)
+        wire?    (g/bcell true)
+        shadow?  (g/bcell false)
+        level    (g/fcell 0.65)]
+    (loop [frame 0]
+      (cpp/BeginDrawing)
+      (g/clear-background!)
+
+      ;; A titled panel, with real controls laid out inside it.
+      (g/panel! 20.0 20.0 210.0 200.0 "Render options")
+      (g/checkbox! 36.0 66.0 20.0 20.0 "Wireframe" wire?)
+      (g/checkbox! 36.0 96.0 20.0 20.0 "Shadows" shadow?)
+      (g/label! 36.0 126.0 180.0 20.0 "Detail")
+      (g/slider-bar! 36.0 148.0 160.0 20.0 nil nil level 0.0 1.0)
+
+      ;; A group box: an outline with the caption in the top edge.
+      (g/group-box! 250.0 20.0 210.0 200.0 "Statistics")
+      (g/label! 266.0 44.0 180.0 20.0 "triangles: 128,904")
+      (g/label! 266.0 68.0 180.0 20.0 "draw calls: 17")
+      (g/label! 266.0 92.0 180.0 20.0 "textures:   9")
+      (g/line! 266.0 116.0 180.0 12.0 nil)
+      (g/label! 266.0 136.0 180.0 20.0 (str "wireframe: " (g/bvalue wire?)))
+      (g/label! 266.0 160.0 180.0 20.0 (str "shadows:   " (g/bvalue shadow?)))
+
+      ;; An untitled panel is just a filled frame.
+      (g/panel! 20.0 236.0 440.0 44.0 nil)
+      (g/label! 36.0 248.0 420.0 20.0 "an untitled GuiPanel - no header bar")
+
+      (when (zero? frame) (rl/maybe-screenshot! shot))
+      (cpp/EndDrawing)
+      (when (rl/keep-running? deadline)
+        (recur (inc frame)))))
+  (cpp/CloseWindow))
