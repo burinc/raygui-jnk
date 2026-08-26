@@ -64,14 +64,16 @@
 
   bb.edn's per-example :doc is a hand-copied literal of the description here,
   because babashka reads :doc before :init runs and so cannot take a computed
-  value. The copy therefore gets verified rather than trusted. A nil `actual`
-  means the registry has a row with NO bb.edn task at all, which is one of the
-  five touchpoints failing silently."
+  value. The copy therefore gets verified rather than trusted.
+
+  A row with NO bb.edn task is NOT a mismatch: it is an example not ported
+  yet, which `bb examples` reports separately as pending."
   []
   (let [tasks (:tasks (edn/read-string (slurp "bb.edn")))]
     (keep (fn [row]
-            (let [nm (nth row 0)
-                  expected (str "▶ " (nth row 3))
-                  actual (get-in tasks [(symbol nm) :doc])]
-              (when-not (= expected actual) [nm expected actual])))
+            (let [nm       (nth row 0)
+                  expected (nth row 3)
+                  actual   (get-in tasks [(symbol nm) :doc])]
+              (when (and actual (not= expected actual))
+                [nm expected actual])))
           examples)))

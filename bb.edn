@@ -88,6 +88,16 @@
      (let [pending (remove tasks (registered-names))]
        (when (seq pending)
          (println (str "  " (count pending) " not yet ported: " (str/join ", " pending)))))
+     (let [drift (reg/doc-mismatches)]
+       (when (seq drift)
+         (binding [*out* *err*]
+           (println "")
+           (println "bb.edn :doc disagrees with the registry description:")
+           (doseq [[n expected actual] drift]
+             (println (str "  " n))
+             (println (str "    registry: " expected))
+             (println (str "    bb.edn:   " actual)))
+           (System/exit 1))))
      (when (seq over)
        (binding [*out* *err*]
          (println "")
