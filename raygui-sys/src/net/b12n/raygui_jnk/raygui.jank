@@ -100,6 +100,72 @@
 
 (defn tfree! [c] (cpp/MemFree (cpp/unbox (:* cpp/char) c)) nil)
 
+;; ------------------------------------------------------------- constants
+;;
+;; raygui's enums, surfaced as jank vars. Examples do NOT include raygui.h,
+;; so `cpp/TABBAR` only resolves for them by accident -- the enum happens to
+;; be visible in the shared C++ session because THIS namespace included the
+;; header earlier. Depending on that is fragile, and a wrong guess at an
+;; index fails silently: a style set on the wrong control simply does
+;; nothing, with no error and no visible difference except the missing
+;; feature.
+;;
+;; Each is read from the C enum rather than transcribed, so they cannot drift
+;; from the vendored header.
+
+;; GuiControl
+(def DEFAULT     (int (cpp/cast cpp/int cpp/DEFAULT)))
+(def LABEL       (int (cpp/cast cpp/int cpp/LABEL)))
+(def BUTTON      (int (cpp/cast cpp/int cpp/BUTTON)))
+(def TOGGLE      (int (cpp/cast cpp/int cpp/TOGGLE)))
+(def SLIDER      (int (cpp/cast cpp/int cpp/SLIDER)))
+(def PROGRESSBAR (int (cpp/cast cpp/int cpp/PROGRESSBAR)))
+(def CHECKBOX    (int (cpp/cast cpp/int cpp/CHECKBOX)))
+(def COMBOBOX    (int (cpp/cast cpp/int cpp/COMBOBOX)))
+(def DROPDOWNBOX (int (cpp/cast cpp/int cpp/DROPDOWNBOX)))
+(def TEXTBOX     (int (cpp/cast cpp/int cpp/TEXTBOX)))
+(def VALUEBOX    (int (cpp/cast cpp/int cpp/VALUEBOX)))
+(def TABBAR      (int (cpp/cast cpp/int cpp/TABBAR)))
+(def LISTVIEW    (int (cpp/cast cpp/int cpp/LISTVIEW)))
+(def COLORPICKER (int (cpp/cast cpp/int cpp/COLORPICKER)))
+(def SCROLLBAR   (int (cpp/cast cpp/int cpp/SCROLLBAR)))
+(def STATUSBAR   (int (cpp/cast cpp/int cpp/STATUSBAR)))
+
+;; GuiControlProperty (shared by every control)
+(def BORDER_COLOR_NORMAL (int (cpp/cast cpp/int cpp/BORDER_COLOR_NORMAL)))
+(def BASE_COLOR_NORMAL   (int (cpp/cast cpp/int cpp/BASE_COLOR_NORMAL)))
+(def TEXT_COLOR_NORMAL   (int (cpp/cast cpp/int cpp/TEXT_COLOR_NORMAL)))
+(def BORDER_WIDTH        (int (cpp/cast cpp/int cpp/BORDER_WIDTH)))
+(def TEXT_PADDING        (int (cpp/cast cpp/int cpp/TEXT_PADDING)))
+(def TEXT_ALIGNMENT      (int (cpp/cast cpp/int cpp/TEXT_ALIGNMENT)))
+
+;; GuiDefaultProperty
+(def TEXT_SIZE        (int (cpp/cast cpp/int cpp/TEXT_SIZE)))
+(def BACKGROUND_COLOR (int (cpp/cast cpp/int cpp/BACKGROUND_COLOR)))
+(def LINE_COLOR       (int (cpp/cast cpp/int cpp/LINE_COLOR)))
+
+;; GuiTabBarProperty
+(def TAB_ITEMS_WIDTH   (int (cpp/cast cpp/int cpp/TAB_ITEMS_WIDTH)))
+(def TAB_CLOSE_BUTTON  (int (cpp/cast cpp/int cpp/TAB_CLOSE_BUTTON)))
+(def TAB_LINE_SIDE     (int (cpp/cast cpp/int cpp/TAB_LINE_SIDE)))
+
+;; GuiState
+(def STATE_NORMAL   (int (cpp/cast cpp/int cpp/STATE_NORMAL)))
+(def STATE_FOCUSED  (int (cpp/cast cpp/int cpp/STATE_FOCUSED)))
+(def STATE_PRESSED  (int (cpp/cast cpp/int cpp/STATE_PRESSED)))
+(def STATE_DISABLED (int (cpp/cast cpp/int cpp/STATE_DISABLED)))
+
+;; GuiResult -- what every control returns
+(def RESULT_NONE      (int (cpp/cast cpp/int cpp/RESULT_NONE)))
+(def RESULT_PRESSED   (int (cpp/cast cpp/int cpp/RESULT_PRESSED)))
+(def RESULT_CHANGED   (int (cpp/cast cpp/int cpp/RESULT_CHANGED)))
+(def RESULT_TAB_CLOSE (int (cpp/cast cpp/int cpp/RESULT_TAB_CLOSE)))
+
+;; TEXT_ALIGNMENT values
+(def TEXT_ALIGN_LEFT   (int (cpp/cast cpp/int cpp/TEXT_ALIGN_LEFT)))
+(def TEXT_ALIGN_CENTER (int (cpp/cast cpp/int cpp/TEXT_ALIGN_CENTER)))
+(def TEXT_ALIGN_RIGHT  (int (cpp/cast cpp/int cpp/TEXT_ALIGN_RIGHT)))
+
 ;; ----------------------------------------------------------------- style
 
 (defn style-get [ctrl prop]
@@ -126,6 +192,14 @@
   [ctrl prop]
   (cpp/ClearBackground
    (cpp/GetColor (cpp/cast cpp/uint32_t (cpp/GuiGetStyle (cpp/int ctrl) (cpp/int prop)))))
+  nil)
+
+(defn clear-background!
+  "Clears the frame to the loaded style's background colour."
+  []
+  (cpp/ClearBackground
+   (cpp/GetColor (cpp/cast cpp/uint32_t (cpp/GuiGetStyle (cpp/int DEFAULT)
+                                                         (cpp/int BACKGROUND_COLOR)))))
   nil)
 
 (defn load-style!
@@ -175,6 +249,32 @@
 
 (defn set-icon-scale! [s] (cpp/GuiSetIconScale (cpp/int s)) nil)
 
+;; -------------------------------------------------------- optional text
+;;
+;; Many raygui controls accept NULL for their caption. jank cannot express
+;; that by passing nil: a nil handed to a `const char *` parameter COMPILES
+;; and throws at runtime with `invalid object type (expected persistent_string
+;; found nil)`.
+;;
+;; Nor can it be coerced at the argument position. `(if text text cpp/nullptr)`
+;; fails at CODEGEN -- the two branches have incompatible C++ types:
+;;
+;;   error: assigning to 'std::nullptr_t' from incompatible type
+;;          'jank::runtime::oref<jank::runtime::object>'
+;;
+;; The only thing that works is two complete call sites, one per type. This
+;; macro emits them. It is a macro rather than a fn because neither a
+;; Rectangle nor a `const char *` can cross a fn boundary.
+
+(defmacro ^:private opt-text
+  "Calls `f` with bounds built from x/y/w/h, passing `text` or a real null."
+  [f x y w h text & more]
+  `(if ~text
+     (~f (cpp/Rectangle (cpp/float ~x) (cpp/float ~y) (cpp/float ~w) (cpp/float ~h))
+         ~text ~@more)
+     (~f (cpp/Rectangle (cpp/float ~x) (cpp/float ~y) (cpp/float ~w) (cpp/float ~h))
+         cpp/nullptr ~@more)))
+
 ;; -------------------------------------------------------------- controls
 ;;
 ;; Every one of these builds its Rectangle inline. `bounds` never escapes.
@@ -190,51 +290,30 @@
                                 text))))
 
 (defn label! [x y w h text]
-  (cpp/GuiLabel (cpp/Rectangle (cpp/float x) (cpp/float y)
-                               (cpp/float w) (cpp/float h))
-                text)
+  (opt-text cpp/GuiLabel x y w h text)
   nil)
 
 (defn line!
   "A horizontal rule. A nil caption draws an unbroken line; a string draws the
-   caption with a gap around it.
-
-   nil cannot be handed straight to a `const char *` parameter -- that COMPILES
-   and then throws at runtime with `invalid object type (expected
-   persistent_string found nil)`, which `bb check` cannot see. The nil is
-   translated to a real null pointer here instead."
+   caption with a gap around it."
   [x y w h text]
-  (if text
-    (cpp/GuiLine (cpp/Rectangle (cpp/float x) (cpp/float y)
-                                (cpp/float w) (cpp/float h))
-                 text)
-    (cpp/GuiLine (cpp/Rectangle (cpp/float x) (cpp/float y)
-                                (cpp/float w) (cpp/float h))
-                 cpp/nullptr))
+  (opt-text cpp/GuiLine x y w h text)
   nil)
 
 (defn panel! [x y w h text]
-  (cpp/GuiPanel (cpp/Rectangle (cpp/float x) (cpp/float y)
-                               (cpp/float w) (cpp/float h))
-                text)
+  (opt-text cpp/GuiPanel x y w h text)
   nil)
 
 (defn group-box! [x y w h text]
-  (cpp/GuiGroupBox (cpp/Rectangle (cpp/float x) (cpp/float y)
-                                  (cpp/float w) (cpp/float h))
-                   text)
+  (opt-text cpp/GuiGroupBox x y w h text)
   nil)
 
 (defn status-bar! [x y w h text]
-  (cpp/GuiStatusBar (cpp/Rectangle (cpp/float x) (cpp/float y)
-                                   (cpp/float w) (cpp/float h))
-                    text)
+  (opt-text cpp/GuiStatusBar x y w h text)
   nil)
 
 (defn dummy-rec! [x y w h text]
-  (cpp/GuiDummyRec (cpp/Rectangle (cpp/float x) (cpp/float y)
-                                  (cpp/float w) (cpp/float h))
-                   text)
+  (opt-text cpp/GuiDummyRec x y w h text)
   nil)
 
 (defn window-box!
@@ -326,9 +405,52 @@
                         (cpp/unbox (:* cpp/int) scroll-cell)
                         (cpp/unbox (:* cpp/int) active-cell))))
 
+(defn list-view-ex!
+  "A list view over a vector of strings, reporting focus as well as scroll.
+
+   GuiListViewEx wants `char **`. cpp/new cannot make an array, so the array
+   is MemAlloc'd, filled with loop/recur (a closure is a fn boundary and a
+   native pointer cannot cross it), used, and freed -- all inside this one
+   body, because a char ** cannot cross a fn boundary either.
+
+   PTR-SIZE is hardcoded to 8: jank has no sizeof and every platform this
+   repo is verified on is 64-bit. Revisit for a 32-bit target."
+  [x y w h items scroll-cell active-cell focus-cell]
+  (let [n     (count items)
+        arr   (cpp/unsafe-cast (:* (:* cpp/char)) (cpp/MemAlloc (cpp/uint32_t (* 8 n))))]
+    (loop [i 0]
+      (when (< i n)
+        ;; TextCopy into a per-item buffer: the jank string's own storage is
+        ;; not ours to hand to C for the length of the frame.
+        (let [s   (nth items i)
+              buf (cpp/unsafe-cast (:* cpp/char) (cpp/MemAlloc (cpp/uint32_t (+ 1 (count s)))))]
+          (cpp/TextCopy buf s)
+          (cpp/= (cpp/aget arr (cpp/int i)) buf))
+        (recur (inc i))))
+    (let [r (int (cpp/GuiListViewEx (cpp/Rectangle (cpp/float x) (cpp/float y)
+                                                   (cpp/float w) (cpp/float h))
+                                    arr (cpp/int n)
+                                    (cpp/unbox (:* cpp/int) scroll-cell)
+                                    (cpp/unbox (:* cpp/int) active-cell)
+                                    (cpp/unbox (:* cpp/int) focus-cell)))]
+      (loop [i 0]
+        (when (< i n)
+          (cpp/MemFree (cpp/aget arr (cpp/int i)))
+          (recur (inc i))))
+      (cpp/MemFree arr)
+      r)))
+
 (defn tab-bar!
-  "Returns the index of a tab whose close button was pressed, or -1.
-   That is distinct from a selection change, which lands in active-cell."
+  "Tabs from a ';'-separated string. Selection lands in active-cell.
+
+   Returns raygui's RESULT_* code, NOT a tab index: 4 (RESULT_TAB_CLOSE) when
+   a close button or middle-click asked to close the CURRENTLY ACTIVE tab, 2
+   (RESULT_CHANGED) on a plain selection change, 0 otherwise. raygui itself
+   notes that on a close result you should consider the focused tab -- there
+   is no separate index out-param.
+
+   The close buttons only appear when the TABBAR/TAB_CLOSE_BUTTON style
+   property is set."
   [x y w h text hscroll-cell active-cell]
   (int (cpp/GuiTabBar (cpp/Rectangle (cpp/float x) (cpp/float y)
                                      (cpp/float w) (cpp/float h))
