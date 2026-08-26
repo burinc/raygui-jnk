@@ -18,14 +18,14 @@
         shot     (rl/shot-path)]
     (loop [frame 0]
       (cpp/BeginDrawing)
-      (g/clear-to-style! cpp/DEFAULT cpp/BACKGROUND_COLOR)
+      (g/clear-background!)
 
       (g/label! 20.0 12.0 380.0 20.0 "A plain left-aligned label")
 
       ;; TEXT_ALIGNMENT is global and sticky: set it, use it, put it back.
-      (g/style-set! cpp/DEFAULT cpp/TEXT_ALIGNMENT 1)
+      (g/style-set! g/DEFAULT g/TEXT_ALIGNMENT g/TEXT_ALIGN_CENTER)
       (g/label! 20.0 36.0 380.0 20.0 "A centred label")
-      (g/style-set! cpp/DEFAULT cpp/TEXT_ALIGNMENT 0)
+      (g/style-set! g/DEFAULT g/TEXT_ALIGNMENT g/TEXT_ALIGN_LEFT)
 
       (g/line! 20.0 66.0 380.0 16.0 "captioned separator")
       (g/line! 20.0 92.0 380.0 12.0 nil)

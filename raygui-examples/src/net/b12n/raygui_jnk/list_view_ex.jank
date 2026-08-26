@@ -1,0 +1,51 @@
+(ns net.b12n.raygui-jnk.list-view-ex
+  "raygui [collections] - a list view reporting focus and scroll.
+
+  GuiListViewEx is the only control in the suite taking an ARRAY of strings
+  (char **) rather than a ';'-joined one, and it adds a third out-param: the
+  row under the pointer, distinct from the selected row.
+
+  The array is built, used and freed entirely inside g/list-view-ex!, because
+  a char ** cannot cross a jank fn boundary. Examples pass a plain vector."
+  (:require [net.b12n.raygui-jnk.raygui :as g]
+            [net.b12n.raygui-jnk.raylib :as rl])
+  (:include "raylib.h" "rlgl.h"))
+
+(def WIDTH 460)
+(def HEIGHT 300)
+
+(def files
+  ["main.jank" "raygui.jank" "raylib.jank" "check.jank" "project.clj"
+   "bb.edn" "README.md" "NOTICE" "LICENSE" "jank-build.bb" "raygui.h"])
+
+(defn -main [& args]
+  (cpp/InitWindow WIDTH HEIGHT "raygui [collections] - list view ex (jank)")
+  (cpp/SetTargetFPS 60)
+  (let [deadline (rl/auto-quit-ms)
+        shot     (rl/shot-path)
+        scroll   (g/icell 2)
+        active   (g/icell 4)
+        focus    (g/icell -1)]
+    (loop [frame 0]
+      (cpp/BeginDrawing)
+      (g/clear-background!)
+
+      (g/label! 20.0 14.0 420.0 20.0 (str (count files) " entries, from a jank vector:"))
+      (g/list-view-ex! 20.0 40.0 260.0 190.0 files scroll active focus)
+
+      (g/label! 296.0 46.0 150.0 20.0 (str "scroll: " (g/ivalue scroll)))
+      (g/label! 296.0 70.0 150.0 20.0 (str "active: " (g/ivalue active)))
+      (g/label! 296.0 94.0 150.0 20.0 (str "focus:  " (g/ivalue focus)))
+      (g/line! 296.0 118.0 150.0 16.0 nil)
+      (g/label! 296.0 138.0 150.0 20.0
+                (let [i (g/ivalue active)]
+                  (if (and (>= i 0) (< i (count files))) (nth files i) "-")))
+
+      (g/status-bar! 0.0 (- HEIGHT 24.0) (+ 0.0 WIDTH) 24.0
+                     "  focus is the row under the pointer, -1 when outside")
+
+      (when (zero? frame) (rl/maybe-screenshot! shot))
+      (cpp/EndDrawing)
+      (when (rl/keep-running? deadline)
+        (recur (inc frame)))))
+  (cpp/CloseWindow))

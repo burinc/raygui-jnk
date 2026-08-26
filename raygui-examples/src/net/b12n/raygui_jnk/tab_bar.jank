@@ -1,0 +1,69 @@
+(ns net.b12n.raygui-jnk.tab-bar
+  "raygui [collections] - tabs with close requests.
+
+  GuiTabBar takes a ';'-separated string (it splits and delegates to
+  GuiTabBarEx), an hscroll cell and an active cell.
+
+  It returns a RESULT_* CODE, not a tab index: 4 (RESULT_TAB_CLOSE) when a
+  close button or a middle-click asked to close the CURRENTLY ACTIVE tab, 2
+  on a plain selection change. There is no separate index out-param -- the
+  tab to remove is the active one, which raygui's own source notes.
+
+  Close buttons only appear when TABBAR/TAB_CLOSE_BUTTON is set, so the
+  example sets it. The control indices come from g/ rather than cpp/: an
+  example does not include raygui.h, and a wrong guess at an index fails
+  silently -- a style set on the wrong control simply does nothing."
+  (:require [net.b12n.raygui-jnk.raygui :as g]
+            [net.b12n.raygui-jnk.raylib :as rl])
+  (:include "raylib.h" "rlgl.h"))
+
+(def WIDTH 480)
+(def HEIGHT 280)
+
+(defn -main [& args]
+  (cpp/InitWindow WIDTH HEIGHT "raygui [collections] - tab bar (jank)")
+  (cpp/SetTargetFPS 60)
+  (g/style-set! g/TABBAR g/TAB_CLOSE_BUTTON 1)
+  (let [deadline (rl/auto-quit-ms)
+        shot     (rl/shot-path)
+        hscroll  (g/icell 0)
+        active   (g/icell 1)
+        closed   (g/tcell "(none yet)" 64)
+        ;; The open tabs live in an atom: loop/recur cannot carry a native
+        ;; value, but a jank vector is an ordinary object and rides fine.
+        tabs     (atom ["raygui.jank" "raylib.jank" "check.jank" "bb.edn"])]
+    (loop [frame 0]
+      (cpp/BeginDrawing)
+      (g/clear-background!)
+
+      (g/label! 20.0 14.0 440.0 20.0 "Middle-click or press x to close the active tab:")
+
+      (let [names (deref tabs)
+            r     (g/tab-bar! 20.0 40.0 440.0 30.0
+                              (clojure.string/join ";" names) hscroll active)]
+        ;; The closed tab is the ACTIVE one; the return is a code, not an index.
+        (when (and (= r g/RESULT_TAB_CLOSE) (seq names))
+          (let [i (max 0 (min (g/ivalue active) (dec (count names))))]
+            (g/treset! closed (nth names i))
+            (reset! tabs (vec (concat (subvec names 0 i) (subvec names (inc i)))))
+            (g/ireset! active (max 0 (dec i))))))
+
+      (g/panel! 20.0 74.0 440.0 130.0 nil)
+      (g/label! 36.0 90.0 400.0 20.0
+                (let [names (deref tabs)
+                      i     (g/ivalue active)]
+                  (if (and (seq names) (>= i 0) (< i (count names)))
+                    (str "showing: " (nth names i))
+                    "no tabs left")))
+      (g/label! 36.0 118.0 400.0 20.0 (str "open tabs: " (count (deref tabs))))
+      (g/label! 36.0 142.0 400.0 20.0 (str "last closed: " (g/tvalue closed)))
+
+      (g/status-bar! 0.0 (- HEIGHT 24.0) (+ 0.0 WIDTH) 24.0
+                     "  GuiTabBar returns RESULT_TAB_CLOSE (4), not an index")
+
+      (when (zero? frame) (rl/maybe-screenshot! shot))
+      (cpp/EndDrawing)
+      (when (rl/keep-running? deadline)
+        (recur (inc frame))))
+    (g/tfree! closed))
+  (cpp/CloseWindow))

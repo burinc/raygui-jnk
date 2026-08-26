@@ -1,0 +1,49 @@
+(ns net.b12n.raygui-jnk.list-view
+  "raygui [collections] - a scrollable list with an active row.
+
+  GuiListView takes a ';'-separated string and TWO int cells: the scroll
+  index and the active row. The list here is longer than the box so it
+  actually scrolls, and the scroll cell is seeded non-zero so the screenshot
+  proves it is wired rather than merely present."
+  (:require [net.b12n.raygui-jnk.raygui :as g]
+            [net.b12n.raygui-jnk.raylib :as rl])
+  (:include "raylib.h" "rlgl.h"))
+
+(def WIDTH 440)
+(def HEIGHT 300)
+
+(def rows
+  ["alpha" "bravo" "charlie" "delta" "echo" "foxtrot" "golf" "hotel"
+   "india" "juliet" "kilo" "lima" "mike" "november" "oscar"])
+
+(defn -main [& args]
+  (cpp/InitWindow WIDTH HEIGHT "raygui [collections] - list view (jank)")
+  (cpp/SetTargetFPS 60)
+  (let [deadline (rl/auto-quit-ms)
+        shot     (rl/shot-path)
+        ;; seeded at 3, not 0: a zero scroll index looks identical to an
+        ;; unwired one.
+        scroll   (g/icell 3)
+        active   (g/icell 5)
+        joined   (clojure.string/join ";" rows)]
+    (loop [frame 0]
+      (cpp/BeginDrawing)
+      (g/clear-background!)
+
+      (g/label! 20.0 14.0 400.0 20.0 (str (count rows) " rows in a 6-row box:"))
+      (g/list-view! 20.0 40.0 260.0 180.0 joined scroll active)
+
+      (g/label! 296.0 46.0 130.0 20.0 (str "scroll: " (g/ivalue scroll)))
+      (g/label! 296.0 70.0 130.0 20.0 (str "active: " (g/ivalue active)))
+      (g/label! 296.0 94.0 130.0 20.0
+                (let [i (g/ivalue active)]
+                  (if (and (>= i 0) (< i (count rows))) (nth rows i) "-")))
+
+      (g/status-bar! 0.0 (- HEIGHT 24.0) (+ 0.0 WIDTH) 24.0
+                     "  scrolled to row 3, row 5 selected")
+
+      (when (zero? frame) (rl/maybe-screenshot! shot))
+      (cpp/EndDrawing)
+      (when (rl/keep-running? deadline)
+        (recur (inc frame)))))
+  (cpp/CloseWindow))

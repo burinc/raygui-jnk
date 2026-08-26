@@ -33,7 +33,7 @@
         result   (g/tcell "(nothing yet)" CAP)]
     (loop [frame 0]
       (cpp/BeginDrawing)
-      (g/clear-to-style! cpp/DEFAULT cpp/BACKGROUND_COLOR)
+      (g/clear-background!)
 
       (g/label! 20.0 16.0 420.0 20.0 "Behind the modal:")
       (g/button! 20.0 40.0 140.0 30.0 "Reopen")

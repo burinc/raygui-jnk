@@ -19,7 +19,7 @@
     (println "auto-quit-ms:" deadline "  shot:" shot)
     (loop [frame 0]
       (cpp/BeginDrawing)
-      (g/clear-to-style! cpp/DEFAULT cpp/BACKGROUND_COLOR)
+      (g/clear-background!)
       (when (g/button! 20.0 20.0 160.0 32.0 "Click me")
         (g/ireset! clicks (inc (g/ivalue clicks))))
       (g/label! 20.0 70.0 300.0 24.0 (str "clicks: " (g/ivalue clicks)))

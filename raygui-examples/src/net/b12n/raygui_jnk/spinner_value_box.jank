@@ -25,7 +25,7 @@
         e3       (g/bcell false)]
     (loop [frame 0]
       (cpp/BeginDrawing)
-      (g/clear-to-style! cpp/DEFAULT cpp/BACKGROUND_COLOR)
+      (g/clear-background!)
 
       (g/label! 20.0 14.0 400.0 20.0 "GuiSpinner - buttons plus typing")
       (when (pos? (g/spinner! 150.0 38.0 150.0 30.0 "count  " count' 0 10 (g/bvalue e1)))

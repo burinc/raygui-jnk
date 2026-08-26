@@ -207,4 +207,24 @@
 
   progress-bar
   {:doc "a progress bar driven by a timer"
-   :task (run-example "progress-bar")}}}
+   :task (run-example "progress-bar")}
+
+  dropdown-box
+  {:doc "a dropdown that owns its edit mode"
+   :task (run-example "dropdown-box")}
+
+  combo-box
+  {:doc "a combo box cycling through options"
+   :task (run-example "combo-box")}
+
+  list-view
+  {:doc "a scrollable list with an active row"
+   :task (run-example "list-view")}
+
+  list-view-ex
+  {:doc "a list view reporting focus and scroll"
+   :task (run-example "list-view-ex")}
+
+  tab-bar
+  {:doc "tabs with close requests"
+   :task (run-example "tab-bar")}}}

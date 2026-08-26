@@ -15,4 +15,9 @@
              :text-input-box     {:main net.b12n.raygui-jnk.text-input-box}
              :spinner-value-box  {:main net.b12n.raygui-jnk.spinner-value-box}
              :sliders            {:main net.b12n.raygui-jnk.sliders}
-             :progress-bar       {:main net.b12n.raygui-jnk.progress-bar}})
+             :progress-bar       {:main net.b12n.raygui-jnk.progress-bar}
+             :dropdown-box       {:main net.b12n.raygui-jnk.dropdown-box}
+             :combo-box          {:main net.b12n.raygui-jnk.combo-box}
+             :list-view          {:main net.b12n.raygui-jnk.list-view}
+             :list-view-ex       {:main net.b12n.raygui-jnk.list-view-ex}
+             :tab-bar            {:main net.b12n.raygui-jnk.tab-bar}})

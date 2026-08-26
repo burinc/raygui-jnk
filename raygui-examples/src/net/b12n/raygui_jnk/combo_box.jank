@@ -1,0 +1,42 @@
+(ns net.b12n.raygui-jnk.combo-box
+  "raygui [collections] - a combo box cycling through options.
+
+  Simpler than the dropdown: no edit mode and no overlay. Clicking advances
+  to the next option, so it needs only an int cell and never locks anything."
+  (:require [net.b12n.raygui-jnk.raygui :as g]
+            [net.b12n.raygui-jnk.raylib :as rl])
+  (:include "raylib.h" "rlgl.h"))
+
+(def WIDTH 440)
+(def HEIGHT 240)
+
+(def options ["Small" "Medium" "Large" "Enormous"])
+
+(defn -main [& args]
+  (cpp/InitWindow WIDTH HEIGHT "raygui [collections] - combo box (jank)")
+  (cpp/SetTargetFPS 60)
+  (let [deadline (rl/auto-quit-ms)
+        shot     (rl/shot-path)
+        size     (g/icell 2)
+        quality  (g/icell 0)]
+    (loop [frame 0]
+      (cpp/BeginDrawing)
+      (g/clear-background!)
+
+      (g/label! 20.0 14.0 400.0 20.0 "Click a combo box to cycle it:")
+      (g/combo-box! 20.0 40.0 260.0 34.0 "Small;Medium;Large;Enormous" size)
+      (g/combo-box! 20.0 84.0 260.0 34.0 "Draft;Normal;High" quality)
+
+      (g/line! 20.0 130.0 400.0 16.0 "read back from the int cells")
+      (g/label! 20.0 152.0 400.0 20.0
+                (str "size:    " (g/ivalue size) "  (" (nth options (g/ivalue size)) ")"))
+      (g/label! 20.0 176.0 400.0 20.0 (str "quality: " (g/ivalue quality)))
+
+      (g/status-bar! 0.0 (- HEIGHT 24.0) (+ 0.0 WIDTH) 24.0
+                     "  GuiComboBox - one int cell, no edit mode")
+
+      (when (zero? frame) (rl/maybe-screenshot! shot))
+      (cpp/EndDrawing)
+      (when (rl/keep-running? deadline)
+        (recur (inc frame)))))
+  (cpp/CloseWindow))

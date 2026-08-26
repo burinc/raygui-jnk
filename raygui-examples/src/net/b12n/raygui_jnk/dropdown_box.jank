@@ -1,0 +1,60 @@
+(ns net.b12n.raygui-jnk.dropdown-box
+  "raygui [collections] - a dropdown that owns its edit mode.
+
+  GuiDropdownBox's editMode is a PLAIN BOOL the caller owns, not a cell. The
+  control returns non-zero when pressed and the caller flips its own state:
+
+      (when (pos? (g/dropdown-box! ... choice (g/bvalue open?)))
+        (g/breset! open? (not (g/bvalue open?))))
+
+  Get that wrong and the list either never opens or never closes, and neither
+  is a compile error.
+
+  While it is open everything else must be LOCKED and the dropdown drawn
+  LAST, or clicks fall through to the controls underneath. The button below
+  the dropdown is there so the screenshot shows the open list overlapping it.
+
+  RAYGUI_DROPDOWN_OPEN=1 forces the open state, so the headless gate can
+  capture both appearances without a click."
+  (:require [net.b12n.raygui-jnk.raygui :as g]
+            [net.b12n.raygui-jnk.raylib :as rl])
+  (:include "raylib.h" "rlgl.h"))
+
+(def WIDTH 440)
+(def HEIGHT 260)
+
+(defn -main [& args]
+  (cpp/InitWindow WIDTH HEIGHT "raygui [collections] - dropdown box (jank)")
+  (cpp/SetTargetFPS 60)
+  (let [deadline (rl/auto-quit-ms)
+        shot     (rl/shot-path)
+        forced?  (some? (rl/getenv-str "RAYGUI_DROPDOWN_OPEN"))
+        choice   (g/icell 1)
+        open?    (g/bcell forced?)]
+    (loop [frame 0]
+      (cpp/BeginDrawing)
+      (g/clear-background!)
+
+      (g/label! 20.0 14.0 400.0 20.0 "Pick a renderer:")
+
+      ;; Everything that is NOT the dropdown, drawn first and locked while open.
+      (when (g/bvalue open?) (g/lock!))
+      (g/button! 20.0 96.0 180.0 34.0 "Underneath")
+      (g/label! 20.0 140.0 400.0 20.0 (str "selected: " (g/ivalue choice)))
+      (g/status-bar! 0.0 (- HEIGHT 24.0) (+ 0.0 WIDTH) 24.0
+                     (if (g/bvalue open?)
+                       "  open - the rest of the panel is locked"
+                       "  closed - click the box to open it"))
+      (g/unlock!)
+
+      ;; The dropdown LAST, so its open list draws over the button above.
+      (when (pos? (g/dropdown-box! 20.0 40.0 260.0 34.0
+                                   "OpenGL 3.3;OpenGL ES 2.0;Vulkan;Metal"
+                                   choice (g/bvalue open?)))
+        (g/breset! open? (not (g/bvalue open?))))
+
+      (when (zero? frame) (rl/maybe-screenshot! shot))
+      (cpp/EndDrawing)
+      (when (rl/keep-running? deadline)
+        (recur (inc frame)))))
+  (cpp/CloseWindow))

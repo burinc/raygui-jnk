@@ -21,7 +21,7 @@
         mode     (g/icell 0)]
     (loop [frame 0]
       (cpp/BeginDrawing)
-      (g/clear-to-style! cpp/DEFAULT cpp/BACKGROUND_COLOR)
+      (g/clear-background!)
 
       (g/label! 20.0 14.0 380.0 20.0 "GuiToggle - one bool")
       (g/toggle! 20.0 36.0 120.0 30.0 (if (g/bvalue on?) "ON" "OFF") on?)

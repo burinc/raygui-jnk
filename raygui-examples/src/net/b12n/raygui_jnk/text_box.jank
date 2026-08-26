@@ -25,7 +25,7 @@
         editing? (g/bcell false)]
     (loop [frame 0]
       (cpp/BeginDrawing)
-      (g/clear-to-style! cpp/DEFAULT cpp/BACKGROUND_COLOR)
+      (g/clear-background!)
 
       (g/label! 20.0 16.0 400.0 20.0 "Click the box to enter edit mode:")
 
