@@ -7,4 +7,7 @@
   :jank {:target-dir         "target"
          :optimization-level 2}
   :profiles {:check          {:main net.b12n.raygui-jnk.check}
-             :basic-controls {:main net.b12n.raygui-jnk.basic-controls}})
+             :basic-controls {:main net.b12n.raygui-jnk.basic-controls}
+             :toggles         {:main net.b12n.raygui-jnk.toggles}
+             :labels-lines    {:main net.b12n.raygui-jnk.labels-lines}
+             :icon-buttons    {:main net.b12n.raygui-jnk.icon-buttons}})

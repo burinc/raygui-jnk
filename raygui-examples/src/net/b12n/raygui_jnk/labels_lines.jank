@@ -1,0 +1,44 @@
+(ns net.b12n.raygui-jnk.labels-lines
+  "raygui [basics] - labels, separators and a status bar.
+
+  The controls that draw but hold no state: GuiLabel, GuiLine (with and
+  without a caption), GuiDummyRec as a layout placeholder, and GuiStatusBar.
+  Text alignment is a style property, set and restored around one label."
+  (:require [net.b12n.raygui-jnk.raygui :as g]
+            [net.b12n.raygui-jnk.raylib :as rl])
+  (:include "raylib.h" "rlgl.h"))
+
+(def WIDTH 420)
+(def HEIGHT 280)
+
+(defn -main [& args]
+  (cpp/InitWindow WIDTH HEIGHT "raygui [basics] - labels and lines (jank)")
+  (cpp/SetTargetFPS 60)
+  (let [deadline (rl/auto-quit-ms)
+        shot     (rl/shot-path)]
+    (loop [frame 0]
+      (cpp/BeginDrawing)
+      (g/clear-to-style! cpp/DEFAULT cpp/BACKGROUND_COLOR)
+
+      (g/label! 20.0 12.0 380.0 20.0 "A plain left-aligned label")
+
+      ;; TEXT_ALIGNMENT is global and sticky: set it, use it, put it back.
+      (g/style-set! cpp/DEFAULT cpp/TEXT_ALIGNMENT 1)
+      (g/label! 20.0 36.0 380.0 20.0 "A centred label")
+      (g/style-set! cpp/DEFAULT cpp/TEXT_ALIGNMENT 0)
+
+      (g/line! 20.0 66.0 380.0 16.0 "captioned separator")
+      (g/line! 20.0 92.0 380.0 12.0 nil)
+
+      (g/label! 20.0 112.0 380.0 20.0 "GuiDummyRec, a layout placeholder:")
+      (g/dummy-rec! 20.0 136.0 180.0 60.0 "DUMMY")
+      (g/dummy-rec! 214.0 136.0 186.0 60.0 "REC")
+
+      (g/status-bar! 0.0 (- HEIGHT 24.0) (+ 0.0 WIDTH) 24.0
+                     "  GuiStatusBar - the bar along the bottom")
+
+      (when (zero? frame) (rl/maybe-screenshot! shot))
+      (cpp/EndDrawing)
+      (when (rl/keep-running? deadline)
+        (recur (inc frame)))))
+  (cpp/CloseWindow))

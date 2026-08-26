@@ -1,0 +1,44 @@
+(ns net.b12n.raygui-jnk.toggles
+  "raygui [basics] - toggle, toggle group and toggle slider.
+
+  Three controls that all hold a selection, with three different state shapes:
+  GuiToggle owns a bool, GuiToggleGroup and GuiToggleSlider own an int index.
+  The group lays its segments out itself from the bounds of the first one."
+  (:require [net.b12n.raygui-jnk.raygui :as g]
+            [net.b12n.raygui-jnk.raylib :as rl])
+  (:include "raylib.h" "rlgl.h"))
+
+(def WIDTH 420)
+(def HEIGHT 260)
+
+(defn -main [& args]
+  (cpp/InitWindow WIDTH HEIGHT "raygui [basics] - toggles (jank)")
+  (cpp/SetTargetFPS 60)
+  (let [deadline (rl/auto-quit-ms)
+        shot     (rl/shot-path)
+        on?      (g/bcell true)
+        picked   (g/icell 1)
+        mode     (g/icell 0)]
+    (loop [frame 0]
+      (cpp/BeginDrawing)
+      (g/clear-to-style! cpp/DEFAULT cpp/BACKGROUND_COLOR)
+
+      (g/label! 20.0 14.0 380.0 20.0 "GuiToggle - one bool")
+      (g/toggle! 20.0 36.0 120.0 30.0 (if (g/bvalue on?) "ON" "OFF") on?)
+
+      (g/label! 20.0 84.0 380.0 20.0 "GuiToggleGroup - an int index")
+      (g/toggle-group! 20.0 106.0 90.0 30.0 "One;Two;Three" picked)
+
+      (g/label! 20.0 154.0 380.0 20.0 "GuiToggleSlider - an int index")
+      (g/toggle-slider! 20.0 176.0 200.0 30.0 "Left;Right" mode)
+
+      (g/status-bar! 0.0 (- HEIGHT 24.0) (+ 0.0 WIDTH) 24.0
+                     (str "toggle " (if (g/bvalue on?) "on" "off")
+                          "   group " (g/ivalue picked)
+                          "   slider " (g/ivalue mode)))
+
+      (when (zero? frame) (rl/maybe-screenshot! shot))
+      (cpp/EndDrawing)
+      (when (rl/keep-running? deadline)
+        (recur (inc frame)))))
+  (cpp/CloseWindow))

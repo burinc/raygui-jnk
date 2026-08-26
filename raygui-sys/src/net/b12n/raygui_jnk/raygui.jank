@@ -195,10 +195,22 @@
                 text)
   nil)
 
-(defn line! [x y w h text]
-  (cpp/GuiLine (cpp/Rectangle (cpp/float x) (cpp/float y)
-                              (cpp/float w) (cpp/float h))
-               text)
+(defn line!
+  "A horizontal rule. A nil caption draws an unbroken line; a string draws the
+   caption with a gap around it.
+
+   nil cannot be handed straight to a `const char *` parameter -- that COMPILES
+   and then throws at runtime with `invalid object type (expected
+   persistent_string found nil)`, which `bb check` cannot see. The nil is
+   translated to a real null pointer here instead."
+  [x y w h text]
+  (if text
+    (cpp/GuiLine (cpp/Rectangle (cpp/float x) (cpp/float y)
+                                (cpp/float w) (cpp/float h))
+                 text)
+    (cpp/GuiLine (cpp/Rectangle (cpp/float x) (cpp/float y)
+                                (cpp/float w) (cpp/float h))
+                 cpp/nullptr))
   nil)
 
 (defn panel! [x y w h text]

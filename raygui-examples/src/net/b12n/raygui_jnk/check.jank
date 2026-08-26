@@ -8,11 +8,17 @@
 
   Every example must be added here as it lands. `bb examples` reports any
   registry row whose namespace is missing from this list."
-  (:require [net.b12n.raygui-jnk.basic-controls]))
+  (:require [net.b12n.raygui-jnk.basic-controls]
+            [net.b12n.raygui-jnk.toggles]
+            [net.b12n.raygui-jnk.labels-lines]
+            [net.b12n.raygui-jnk.icon-buttons]))
 
 (def required
   "The namespaces this gate covers, for `bb check` to report against."
-  ['net.b12n.raygui-jnk.basic-controls])
+  ['net.b12n.raygui-jnk.basic-controls
+   'net.b12n.raygui-jnk.toggles
+   'net.b12n.raygui-jnk.labels-lines
+   'net.b12n.raygui-jnk.icon-buttons])
 
 (defn -main [& args]
   (println (str "check: " (count required) " example namespaces compiled"))

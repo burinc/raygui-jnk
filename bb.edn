@@ -165,4 +165,16 @@
 
   basic-controls
   {:doc "button, label and a live click counter"
-   :task (run-example "basic-controls")}}}
+   :task (run-example "basic-controls")}
+
+  toggles
+  {:doc "toggle, toggle group and toggle slider"
+   :task (run-example "toggles")}
+
+  labels-lines
+  {:doc "labels, separators and a status bar"
+   :task (run-example "labels-lines")}
+
+  icon-buttons
+  {:doc "the embedded 1-bit icon pack on buttons"
+   :task (run-example "icon-buttons")}}}
