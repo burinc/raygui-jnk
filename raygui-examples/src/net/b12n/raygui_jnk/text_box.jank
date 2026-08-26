@@ -1,0 +1,50 @@
+(ns net.b12n.raygui-jnk.text-box
+  "raygui [inputs] - an editable text box with edit mode.
+
+  The suite's first mutable char buffer. g/tcell allocates it once outside the
+  frame loop; g/tvalue reads it back; g/tfree! releases it after.
+
+  Edit mode is a PLAIN BOOL the caller owns, not a cell. GuiTextBox returns
+  non-zero when clicked and the caller flips its own state. Passing a cell
+  there compiles -- C++ converts the pointer to true -- and pins the box open
+  forever, which is a bug no gate here would catch."
+  (:require [net.b12n.raygui-jnk.raygui :as g]
+            [net.b12n.raygui-jnk.raylib :as rl])
+  (:include "raylib.h" "rlgl.h"))
+
+(def WIDTH 440)
+(def HEIGHT 240)
+(def CAP 64)
+
+(defn -main [& args]
+  (cpp/InitWindow WIDTH HEIGHT "raygui [inputs] - text box (jank)")
+  (cpp/SetTargetFPS 60)
+  (let [deadline (rl/auto-quit-ms)
+        shot     (rl/shot-path)
+        buf      (g/tcell "edit me" CAP)
+        editing? (g/bcell false)]
+    (loop [frame 0]
+      (cpp/BeginDrawing)
+      (g/clear-to-style! cpp/DEFAULT cpp/BACKGROUND_COLOR)
+
+      (g/label! 20.0 16.0 400.0 20.0 "Click the box to enter edit mode:")
+
+      (when (pos? (g/text-box! 20.0 42.0 400.0 34.0 buf CAP (g/bvalue editing?)))
+        (g/breset! editing? (not (g/bvalue editing?))))
+
+      (g/line! 20.0 90.0 400.0 16.0 "read back through g/tvalue")
+      (g/label! 20.0 112.0 400.0 20.0 (str "contents: " (g/tvalue buf)))
+      (g/label! 20.0 136.0 400.0 20.0 (str "length:   " (count (g/tvalue buf))))
+      (g/label! 20.0 160.0 400.0 20.0 (str "editing:  " (g/bvalue editing?)))
+
+      (g/status-bar! 0.0 (- HEIGHT 24.0) (+ 0.0 WIDTH) 24.0
+                     (if (g/bvalue editing?)
+                       "  EDITING - type, then click the box again"
+                       "  click the box to edit"))
+
+      (when (zero? frame) (rl/maybe-screenshot! shot))
+      (cpp/EndDrawing)
+      (when (rl/keep-running? deadline)
+        (recur (inc frame))))
+    (g/tfree! buf))
+  (cpp/CloseWindow))

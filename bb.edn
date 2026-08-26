@@ -177,4 +177,24 @@
 
   icon-buttons
   {:doc "the embedded 1-bit icon pack on buttons"
-   :task (run-example "icon-buttons")}}}
+   :task (run-example "icon-buttons")}
+
+  text-box
+  {:doc "an editable text box with edit mode"
+   :task (run-example "text-box")}
+
+  text-input-box
+  {:doc "a modal text prompt with secret toggle"
+   :task (run-example "text-input-box")}
+
+  spinner-value-box
+  {:doc "spinner and value box, clamped and typed"
+   :task (run-example "spinner-value-box")}
+
+  sliders
+  {:doc "slider, slider bar and their value cells"
+   :task (run-example "sliders")}
+
+  progress-bar
+  {:doc "a progress bar driven by a timer"
+   :task (run-example "progress-bar")}}}

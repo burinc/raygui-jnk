@@ -1,0 +1,60 @@
+(ns net.b12n.raygui-jnk.sliders
+  "raygui [inputs] - slider, slider bar and their value cells.
+
+  GuiSlider has a draggable handle and captions on both sides; GuiSliderBar
+  fills from its left edge. Both write through a float cell.
+
+  Each value is drawn as a label beside its control, so a cell that failed to
+  round-trip is visible in the screenshot rather than only in a log."
+  (:require [net.b12n.raygui-jnk.raygui :as g]
+            [net.b12n.raygui-jnk.raylib :as rl])
+  (:include "raylib.h" "rlgl.h"))
+
+(def WIDTH 500)
+(def HEIGHT 260)
+
+(defn fmt2
+  "A non-negative real with exactly two decimals.
+
+   jank has neither clojure.core/format nor Math/round -- there is no JVM.
+   Same shape as b12n-raylib-jnk's fmt2."
+  [x]
+  (let [c     (int (+ (* x 100.0) 0.5))
+        whole (int (quot c 100))
+        frac  (int (mod c 100))
+        frac  (str (if (< frac 10) "0" "") frac)]
+    (str whole "." frac)))
+
+(defn -main [& args]
+  (cpp/InitWindow WIDTH HEIGHT "raygui [inputs] - sliders (jank)")
+  (cpp/SetTargetFPS 60)
+  (let [deadline (rl/auto-quit-ms)
+        shot     (rl/shot-path)
+        volume   (g/fcell 0.35)
+        balance  (g/fcell 0.80)
+        fill     (g/fcell 0.60)]
+    (loop [frame 0]
+      (cpp/BeginDrawing)
+      (g/clear-to-style! cpp/DEFAULT cpp/BACKGROUND_COLOR)
+
+      (g/label! 20.0 14.0 460.0 20.0 "GuiSlider - draggable handle")
+      (g/slider! 70.0 38.0 260.0 24.0 "0.0" "1.0" volume 0.0 1.0)
+      (g/label! 378.0 38.0 100.0 24.0 (fmt2 (g/fvalue volume)))
+
+      (g/slider! 70.0 74.0 260.0 24.0 "0.0" "1.0" balance 0.0 1.0)
+      (g/label! 378.0 74.0 100.0 24.0 (fmt2 (g/fvalue balance)))
+
+      (g/line! 20.0 112.0 460.0 16.0 "GuiSliderBar - fills from the left")
+      (g/slider-bar! 70.0 136.0 260.0 24.0 "0.0" "1.0" fill 0.0 1.0)
+      (g/label! 378.0 136.0 100.0 24.0 (fmt2 (g/fvalue fill)))
+
+      (g/status-bar! 0.0 (- HEIGHT 24.0) (+ 0.0 WIDTH) 24.0
+                     (str "  volume " (fmt2 (g/fvalue volume))
+                          "   balance " (fmt2 (g/fvalue balance))
+                          "   fill " (fmt2 (g/fvalue fill))))
+
+      (when (zero? frame) (rl/maybe-screenshot! shot))
+      (cpp/EndDrawing)
+      (when (rl/keep-running? deadline)
+        (recur (inc frame)))))
+  (cpp/CloseWindow))

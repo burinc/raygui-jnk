@@ -1,0 +1,61 @@
+(ns net.b12n.raygui-jnk.text-input-box
+  "raygui [inputs] - a modal text prompt with secret toggle.
+
+  GuiTextInputBox is a whole dialog in one call: title, message, buffer, two
+  ';'-separated buttons, and a secret-view toggle. It carries an int *btnActive
+  out-param that raygui 5.0's own docs do not show -- this vendored revision is
+  9 commits past 5.0.
+
+  It is also the one wrapper fn whose bounds travel as an [x y w h] vector:
+  spread into four parameters it needs 11, and a jank fn caps at 10.
+
+  The masked field shows exactly sixteen asterisks whatever the buffer holds:
+  raygui masks with a fixed `static char stars[] = \"****************\"`, so the
+  star count carries no information about the real text. Click the eye to
+  reveal it."
+  (:require [net.b12n.raygui-jnk.raygui :as g]
+            [net.b12n.raygui-jnk.raylib :as rl])
+  (:include "raylib.h" "rlgl.h"))
+
+(def WIDTH 460)
+(def HEIGHT 280)
+(def CAP 64)
+
+(defn -main [& args]
+  (cpp/InitWindow WIDTH HEIGHT "raygui [inputs] - text input box (jank)")
+  (cpp/SetTargetFPS 60)
+  (let [deadline (rl/auto-quit-ms)
+        shot     (rl/shot-path)
+        buf      (g/tcell "hunter2" CAP)
+        btn      (g/icell -1)
+        secret?  (g/bcell false)
+        open?    (g/bcell true)
+        result   (g/tcell "(nothing yet)" CAP)]
+    (loop [frame 0]
+      (cpp/BeginDrawing)
+      (g/clear-to-style! cpp/DEFAULT cpp/BACKGROUND_COLOR)
+
+      (g/label! 20.0 16.0 420.0 20.0 "Behind the modal:")
+      (g/button! 20.0 40.0 140.0 30.0 "Reopen")
+      (g/label! 20.0 84.0 420.0 20.0 (str "last result: " (g/tvalue result)))
+
+      (if (g/bvalue open?)
+        (do
+          ;; Dim what is behind, so the modality reads in the screenshot.
+          (cpp/DrawRectangle 0 0 WIDTH HEIGHT (cpp/Fade cpp/RAYWHITE (cpp/float 0.75)))
+          (let [r (g/text-input-box! [60.0 90.0 340.0 130.0]
+                                     "Name required" "Enter your name:"
+                                     buf CAP "Cancel;OK" btn secret?)]
+            (when (>= r 0)
+              (g/treset! result (if (= r 1) (str "OK: " (g/tvalue buf)) "cancelled"))
+              (g/breset! open? false))))
+        (when (g/button! 180.0 40.0 140.0 30.0 "Open dialog")
+          (g/breset! open? true)))
+
+      (when (zero? frame) (rl/maybe-screenshot! shot))
+      (cpp/EndDrawing)
+      (when (rl/keep-running? deadline)
+        (recur (inc frame))))
+    (g/tfree! buf)
+    (g/tfree! result))
+  (cpp/CloseWindow))

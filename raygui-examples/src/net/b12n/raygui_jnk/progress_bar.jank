@@ -1,0 +1,50 @@
+(ns net.b12n.raygui-jnk.progress-bar
+  "raygui [inputs] - a progress bar driven by a timer.
+
+  The bar fills over 4 seconds from GetTime, so it is frame-rate independent,
+  then loops.
+
+  DEVIATION from the suite's screenshot convention: every other example
+  captures on frame 0. Here frame 0 shows an empty bar, which proves nothing,
+  so the capture waits until the bar is partly filled."
+  (:require [net.b12n.raygui-jnk.raygui :as g]
+            [net.b12n.raygui-jnk.raylib :as rl])
+  (:include "raylib.h" "rlgl.h"))
+
+(def WIDTH 440)
+(def HEIGHT 220)
+(def PERIOD 4.0)
+(def SHOT-AFTER-MS 900.0)
+
+(defn -main [& args]
+  (cpp/InitWindow WIDTH HEIGHT "raygui [inputs] - progress bar (jank)")
+  (cpp/SetTargetFPS 60)
+  (let [deadline (rl/auto-quit-ms)
+        shot     (rl/shot-path)
+        progress (g/fcell 0.0)
+        loaded   (g/fcell 0.0)]
+    (loop [shot-taken? false]
+      (let [t    (+ 0.0 (cpp/GetTime))
+            frac (/ (mod t PERIOD) PERIOD)]
+        (g/freset! progress frac)
+        (g/freset! loaded (* 100.0 frac))
+
+        (cpp/BeginDrawing)
+        (g/clear-to-style! cpp/DEFAULT cpp/BACKGROUND_COLOR)
+
+        (g/label! 20.0 16.0 400.0 20.0 "GuiProgressBar, filled from GetTime:")
+        (g/progress-bar! 60.0 46.0 320.0 28.0 "0%" "100%" progress 0.0 1.0)
+
+        (g/line! 20.0 90.0 400.0 16.0 "the same value, as a second bar")
+        (g/progress-bar! 60.0 112.0 320.0 20.0 "" "" loaded 0.0 100.0)
+
+        (g/status-bar! 0.0 (- HEIGHT 24.0) (+ 0.0 WIDTH) 24.0
+                       (str "  " (int (* 100.0 frac)) "%   t=" (int t) "s"))
+
+        (let [take? (and (not shot-taken?) (> (rl/elapsed-ms) SHOT-AFTER-MS))]
+          (when take? (rl/maybe-screenshot! shot))
+          (cpp/EndDrawing)
+          (when (rl/keep-running? deadline)
+            (recur (or shot-taken? take?))))))
+    nil)
+  (cpp/CloseWindow))

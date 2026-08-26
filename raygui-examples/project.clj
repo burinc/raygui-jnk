@@ -10,4 +10,9 @@
              :basic-controls {:main net.b12n.raygui-jnk.basic-controls}
              :toggles         {:main net.b12n.raygui-jnk.toggles}
              :labels-lines    {:main net.b12n.raygui-jnk.labels-lines}
-             :icon-buttons    {:main net.b12n.raygui-jnk.icon-buttons}})
+             :icon-buttons    {:main net.b12n.raygui-jnk.icon-buttons}
+             :text-box           {:main net.b12n.raygui-jnk.text-box}
+             :text-input-box     {:main net.b12n.raygui-jnk.text-input-box}
+             :spinner-value-box  {:main net.b12n.raygui-jnk.spinner-value-box}
+             :sliders            {:main net.b12n.raygui-jnk.sliders}
+             :progress-bar       {:main net.b12n.raygui-jnk.progress-bar}})
