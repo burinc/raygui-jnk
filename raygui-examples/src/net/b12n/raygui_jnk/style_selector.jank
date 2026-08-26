@@ -1,0 +1,108 @@
+(ns net.b12n.raygui-jnk.style-selector
+  "raygui [styling] - cycle six vendored .rgs style themes.
+
+  A port of raygui's own examples/controls/style_selector.c.
+
+  Three things here each produce a wrong-but-compiling result, and none of
+  them raises anything:
+
+  1. THE PATH. GuiLoadStyleFromMemory is fed by raylib's LoadFileData, which
+     resolves against the process working directory. A bare filename works
+     under `bb` from the repo root and silently loads nothing anywhere else --
+     raylib logs a warning, raygui keeps the previous style, and the label
+     goes on claiming the new one. Everything goes through rl/styles-path.
+
+  2. THE BYTE ORDER. A style colour is 0xRRGGBBAA; raylib's Color packs
+     0xAABBGGRR. Straight to ClearBackground that is a plausible wrong colour.
+     GetColor converts, and g/clear-background! does it centrally.
+
+  3. THE SIGN. jank boxes GuiGetStyle's unsigned int as a SIGNED int, so it
+     needs widening before GetColor -- and cpp/unsigned_int does not exist;
+     the spelling is cpp/uint32_t.
+
+  RAYGUI_STYLE=<name> selects one at startup, which is how the gate captures
+  all six without clicking."
+  (:require [clojure.string :as string]
+            [net.b12n.raygui-jnk.raygui :as g]
+            [net.b12n.raygui-jnk.raylib :as rl])
+  (:include "raylib.h" "rlgl.h"))
+
+(def WIDTH 520)
+(def HEIGHT 340)
+
+(def styles ["default" "ashes" "candy" "cyber" "dark" "sunny" "terminal"])
+
+(defn index-of
+  "Index of x in v, or 0. jank has no JVM, so no .indexOf."
+  [v x]
+  (loop [i 0]
+    (cond (>= i (count v)) 0
+          (= (nth v i) x)  i
+          :else            (recur (inc i)))))
+
+(defn apply-style!
+  "Loads a theme by name. 'default' restores raygui's built-in."
+  [name]
+  (if (= name "default")
+    (g/style-default!)
+    (g/load-style! (rl/styles-path (str "style_" name ".rgs"))))
+  nil)
+
+(defn -main [& args]
+  (cpp/InitWindow WIDTH HEIGHT "raygui [styling] - style selector (jank)")
+  (cpp/SetTargetFPS 60)
+  (let [deadline (rl/auto-quit-ms)
+        shot     (rl/shot-path)
+        wanted   (rl/getenv-str "RAYGUI_STYLE")
+        start    (if wanted (index-of styles wanted) 0)
+        idx      (g/icell start)
+        applied  (g/icell -1)
+        toggle   (g/bcell true)
+        level    (g/fcell 0.45)
+        pick     (g/icell 1)
+        buf      (g/tcell "styled text" 32)
+        edit?    (g/bcell false)]
+    (loop [frame 0]
+      ;; Reload only when the selection actually changed -- reloading every
+      ;; frame would reset the embedded font each time.
+      (when (not= (g/ivalue idx) (g/ivalue applied))
+        (apply-style! (nth styles (g/ivalue idx)))
+        (g/ireset! applied (g/ivalue idx)))
+
+      (cpp/BeginDrawing)
+      (g/clear-background!)
+
+      (g/label! 20.0 12.0 480.0 20.0
+                (str "style: " (nth styles (g/ivalue idx))
+                     "   (" (inc (g/ivalue idx)) " of " (count styles) ")"))
+
+      (when (g/button! 20.0 38.0 100.0 32.0 "< prev")
+        (g/ireset! idx (mod (dec (g/ivalue idx)) (count styles))))
+      (when (g/button! 130.0 38.0 100.0 32.0 "next >")
+        (g/ireset! idx (mod (inc (g/ivalue idx)) (count styles))))
+
+      ;; A spread of controls, so a theme is judged on more than one colour.
+      (g/group-box! 20.0 88.0 480.0 190.0 "every control, restyled")
+      (g/label! 40.0 108.0 200.0 20.0 "A label in this theme")
+      (g/checkbox! 40.0 136.0 20.0 20.0 "A checkbox" toggle)
+      (g/slider-bar! 40.0 168.0 180.0 22.0 nil nil level 0.0 1.0)
+      (g/combo-box! 40.0 200.0 180.0 28.0 "One;Two;Three" pick)
+      (when (pos? (g/text-box! 40.0 238.0 180.0 28.0 buf 32 (g/bvalue edit?)))
+        (g/breset! edit? (not (g/bvalue edit?))))
+
+      (g/button! 260.0 108.0 220.0 32.0 "A button")
+      (g/progress-bar! 260.0 152.0 220.0 22.0 nil nil level 0.0 1.0)
+      (g/line! 260.0 186.0 220.0 12.0 "a separator")
+      (g/toggle-group! 260.0 206.0 70.0 28.0 "A;B;C" pick)
+      (g/dummy-rec! 260.0 242.0 220.0 24.0 "DUMMY")
+
+      (g/status-bar! 0.0 (- HEIGHT 24.0) (+ 0.0 WIDTH) 24.0
+                     (str "  " (nth styles (g/ivalue idx))
+                          " - palette AND embedded font come from the .rgs"))
+
+      (when (zero? frame) (rl/maybe-screenshot! shot))
+      (cpp/EndDrawing)
+      (when (rl/keep-running? deadline)
+        (recur (inc frame))))
+    (g/tfree! buf))
+  (cpp/CloseWindow))

@@ -1,0 +1,78 @@
+(ns net.b12n.raygui-jnk.gui-state
+  "raygui [styling] - forced states, alpha and lock.
+
+  The global-state API has no bounds of its own: GuiSetState forces every
+  following control to render in one state, GuiSetAlpha fades them, and
+  GuiLock makes them inert while still drawing normally.
+
+  All three are GLOBAL AND STICKY. Leaving GuiSetState set disables every
+  later control in the frame, and leaving alpha at 0.3 fades the rest of the
+  window -- neither raises anything. Each row here resets to STATE_NORMAL and
+  alpha 1.0 immediately after."
+  (:require [net.b12n.raygui-jnk.raygui :as g]
+            [net.b12n.raygui-jnk.raylib :as rl])
+  (:include "raylib.h" "rlgl.h"))
+
+(def WIDTH 560)
+(def HEIGHT 340)
+
+(def state-rows
+  [["STATE_NORMAL"   0]
+   ["STATE_FOCUSED"  1]
+   ["STATE_PRESSED"  2]
+   ["STATE_DISABLED" 3]])
+
+(defn -main [& args]
+  (cpp/InitWindow WIDTH HEIGHT "raygui [styling] - gui state (jank)")
+  (cpp/SetTargetFPS 60)
+  (g/enable-tooltip!)
+  (let [deadline (rl/auto-quit-ms)
+        shot     (rl/shot-path)
+        on?      (g/bcell true)
+        level    (g/fcell 0.6)
+        locked?  (g/bcell true)]
+    (loop [frame 0]
+      (cpp/BeginDrawing)
+      (g/clear-background!)
+
+      (g/label! 20.0 10.0 520.0 20.0
+                "The same three controls under each forced state:")
+
+      ;; One row per state. loop/recur, not doseq: a closure is a fn boundary.
+      (loop [i 0]
+        (when (< i (count state-rows))
+          (let [row  (nth state-rows i)
+                y    (+ 34.0 (* i 46.0))]
+            (g/set-state! (nth row 1))
+            (g/label! 20.0 (+ y 4.0) 130.0 20.0 (nth row 0))
+            (g/button! 150.0 y 110.0 30.0 "Button")
+            (g/checkbox! 276.0 (+ y 6.0) 18.0 18.0 "Check" on?)
+            (g/slider-bar! 370.0 (+ y 4.0) 160.0 22.0 nil nil level 0.0 1.0)
+            ;; Reset immediately: the state is global and sticky.
+            (g/set-state! g/STATE_NORMAL))
+          (recur (inc i))))
+
+      (g/line! 20.0 220.0 520.0 16.0 "GuiSetAlpha - also global, also sticky")
+      (g/set-alpha! 0.25)
+      (g/button! 20.0 242.0 150.0 30.0 "alpha 0.25")
+      (g/set-alpha! 1.0)
+      (g/button! 186.0 242.0 150.0 30.0 "alpha 1.0")
+
+      ;; GuiLock draws normally but makes controls inert -- indistinguishable
+      ;; in a screenshot, which is exactly why it is worth a label.
+      (when (g/bvalue locked?) (g/lock!))
+      (g/set-tooltip! "this control is locked")
+      (g/button! 352.0 242.0 180.0 30.0
+                 (if (g/bvalue locked?) "locked (inert)" "unlocked"))
+      (g/unlock!)
+
+      (g/checkbox! 20.0 286.0 18.0 18.0 "lock that button" locked?)
+
+      (g/status-bar! 0.0 (- HEIGHT 24.0) (+ 0.0 WIDTH) 24.0
+                     "  state, alpha and lock are global - always reset them")
+
+      (when (zero? frame) (rl/maybe-screenshot! shot))
+      (cpp/EndDrawing)
+      (when (rl/keep-running? deadline)
+        (recur (inc frame)))))
+  (cpp/CloseWindow))

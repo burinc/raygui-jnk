@@ -24,4 +24,10 @@
              :panel-group-box    {:main net.b12n.raygui-jnk.panel-group-box}
              :scroll-panel       {:main net.b12n.raygui-jnk.scroll-panel}
              :window-box         {:main net.b12n.raygui-jnk.window-box}
-             :floating-window    {:main net.b12n.raygui-jnk.floating-window}})
+             :floating-window    {:main net.b12n.raygui-jnk.floating-window}
+             :message-box        {:main net.b12n.raygui-jnk.message-box}
+             :custom-input-box   {:main net.b12n.raygui-jnk.custom-input-box}
+             :color-picker       {:main net.b12n.raygui-jnk.color-picker}
+             :color-picker-hsv   {:main net.b12n.raygui-jnk.color-picker-hsv}
+             :style-selector     {:main net.b12n.raygui-jnk.style-selector}
+             :gui-state          {:main net.b12n.raygui-jnk.gui-state}})

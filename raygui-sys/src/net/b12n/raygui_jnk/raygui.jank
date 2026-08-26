@@ -477,8 +477,11 @@
 ;; --- dialogs ---
 
 (defn message-box!
-  "btn-text is ';'-separated. Returns the pressed button index, -1 while open,
-   or 0 for the window close button."
+  "btn-text is ';'-separated.
+
+   Returns a RESULT_* code, not an index: 1 (RESULT_PRESSED) when something
+   was pressed, 0 otherwise. The INDEX lands in active-cell -- 0 for the
+   window close button, 1..n for the buttons in btn-text order."
   [x y w h title message btn-text active-cell]
   (int (cpp/GuiMessageBox (cpp/Rectangle (cpp/float x) (cpp/float y)
                                          (cpp/float w) (cpp/float h))
@@ -501,43 +504,41 @@
 
 ;; --- colour ---
 
+(defn hsv->rgb
+  "Hue 0..360, saturation and value 0..1 -> a plain [r g b] jank vector.
+
+   ColorFromHSV returns a Color by value, which cannot cross a jank fn
+   boundary, so it is consumed here and handed back as numbers."
+  [h s v]
+  (let [c (cpp/new cpp/Color (cpp/ColorFromHSV (cpp/float h) (cpp/float s) (cpp/float v)))]
+    [(int (+ 0.0 (.-r (cpp/* c))))
+     (int (+ 0.0 (.-g (cpp/* c))))
+     (int (+ 0.0 (.-b (cpp/* c))))]))
+
 (defn color-picker! [x y w h text cell]
-  (int (cpp/GuiColorPicker (cpp/Rectangle (cpp/float x) (cpp/float y)
-                                          (cpp/float w) (cpp/float h))
-                           text (cpp/unbox (:* cpp/Color) cell))))
+  (opt-text cpp/GuiColorPicker x y w h text (cpp/unbox (:* cpp/Color) cell)))
 
 (defn color-panel! [x y w h text cell]
-  (int (cpp/GuiColorPanel (cpp/Rectangle (cpp/float x) (cpp/float y)
-                                         (cpp/float w) (cpp/float h))
-                          text (cpp/unbox (:* cpp/Color) cell))))
+  (opt-text cpp/GuiColorPanel x y w h text (cpp/unbox (:* cpp/Color) cell)))
 
 (defn color-bar-alpha! [x y w h text cell]
-  (int (cpp/GuiColorBarAlpha (cpp/Rectangle (cpp/float x) (cpp/float y)
-                                            (cpp/float w) (cpp/float h))
-                             text (cpp/unbox (:* cpp/float) cell))))
+  (opt-text cpp/GuiColorBarAlpha x y w h text (cpp/unbox (:* cpp/float) cell)))
 
 (defn color-bar-hue! [x y w h text cell]
-  (int (cpp/GuiColorBarHue (cpp/Rectangle (cpp/float x) (cpp/float y)
-                                          (cpp/float w) (cpp/float h))
-                           text (cpp/unbox (:* cpp/float) cell))))
+  (opt-text cpp/GuiColorBarHue x y w h text (cpp/unbox (:* cpp/float) cell)))
 
 (defn color-picker-hsv! [x y w h text cell]
-  (int (cpp/GuiColorPickerHSV (cpp/Rectangle (cpp/float x) (cpp/float y)
-                                             (cpp/float w) (cpp/float h))
-                              text (cpp/unbox (:* cpp/Vector3) cell))))
+  (opt-text cpp/GuiColorPickerHSV x y w h text (cpp/unbox (:* cpp/Vector3) cell)))
 
 (defn color-panel-hsv! [x y w h text cell]
-  (int (cpp/GuiColorPanelHSV (cpp/Rectangle (cpp/float x) (cpp/float y)
-                                            (cpp/float w) (cpp/float h))
-                             text (cpp/unbox (:* cpp/Vector3) cell))))
+  (opt-text cpp/GuiColorPanelHSV x y w h text (cpp/unbox (:* cpp/Vector3) cell)))
 
 ;; --- grid and scroll panel ---
 
 (defn grid! [x y w h text spacing subdivs mouse-cell]
-  (int (cpp/GuiGrid (cpp/Rectangle (cpp/float x) (cpp/float y)
-                                   (cpp/float w) (cpp/float h))
-                    text (cpp/float spacing) (cpp/int subdivs)
-                    (cpp/unbox (:* cpp/Vector2) mouse-cell))))
+  (opt-text cpp/GuiGrid x y w h text
+            (cpp/float spacing) (cpp/int subdivs)
+            (cpp/unbox (:* cpp/Vector2) mouse-cell)))
 
 (defn scroll-panel!
   "Returns the visible view rectangle as a plain [x y w h] jank vector.

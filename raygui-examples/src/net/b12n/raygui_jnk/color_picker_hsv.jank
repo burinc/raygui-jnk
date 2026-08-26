@@ -1,0 +1,63 @@
+(ns net.b12n.raygui-jnk.color-picker-hsv
+  "raygui [color] - the HSV picker and panel.
+
+  GuiColorPickerHSV and GuiColorPanelHSV hold a Vector3 cell of
+  hue/saturation/value rather than a Color: hue in 0..360, the other two in
+  0..1.
+
+  The swatch converts back through raylib's ColorFromHSV, so the screenshot
+  shows the two representations agreeing. That conversion lives in the
+  wrapper (g/hsv->rgb) because ColorFromHSV returns a Color by value, which
+  cannot cross a jank fn boundary."
+  (:require [net.b12n.raygui-jnk.raygui :as g]
+            [net.b12n.raygui-jnk.raylib :as rl])
+  (:include "raylib.h" "rlgl.h"))
+
+(def WIDTH 520)
+(def HEIGHT 320)
+
+(defn fmt2 [x]
+  (let [c     (int (+ (* x 100.0) 0.5))
+        whole (int (quot c 100))
+        frac  (int (mod c 100))]
+    (str whole "." (if (< frac 10) (str "0" frac) (str frac)))))
+
+(defn -main [& args]
+  (cpp/InitWindow WIDTH HEIGHT "raygui [color] - color picker HSV (jank)")
+  (cpp/SetTargetFPS 60)
+  (let [deadline (rl/auto-quit-ms)
+        shot     (rl/shot-path)
+        ;; a teal: hue 190 degrees, high saturation, high value
+        hsv      (g/v3cell 190.0 0.75 0.85)]
+    (loop [frame 0]
+      (cpp/BeginDrawing)
+      (g/clear-background!)
+
+      (g/label! 20.0 12.0 210.0 20.0 "GuiColorPickerHSV")
+      (g/color-picker-hsv! 20.0 38.0 190.0 190.0 nil hsv)
+
+      (g/label! 250.0 12.0 260.0 20.0 "GuiColorPanelHSV - the same cell")
+      (g/color-panel-hsv! 250.0 38.0 190.0 190.0 nil hsv)
+
+      (let [v   (g/v3value hsv)
+            h   (nth v 0) s (nth v 1) b (nth v 2)
+            rgb (g/hsv->rgb h s b)]
+        (g/label! 20.0 240.0 220.0 20.0 (str "hue:        " (int h) " deg"))
+        (g/label! 20.0 262.0 220.0 20.0 (str "saturation: " (fmt2 s)))
+        (g/label! 20.0 284.0 220.0 20.0 (str "value:      " (fmt2 b)))
+
+        (cpp/DrawRectangle 250 240 190 60
+                           (cpp/Color (cpp/cast cpp/uint8_t (nth rgb 0))
+                                      (cpp/cast cpp/uint8_t (nth rgb 1))
+                                      (cpp/cast cpp/uint8_t (nth rgb 2))
+                                      (cpp/cast cpp/uint8_t 255)))
+        (cpp/DrawRectangleLines 250 240 190 60 cpp/DARKGRAY)
+        (g/label! 452.0 240.0 60.0 20.0 (str "r " (nth rgb 0)))
+        (g/label! 452.0 262.0 60.0 20.0 (str "g " (nth rgb 1)))
+        (g/label! 452.0 284.0 60.0 20.0 (str "b " (nth rgb 2))))
+
+      (when (zero? frame) (rl/maybe-screenshot! shot))
+      (cpp/EndDrawing)
+      (when (rl/keep-running? deadline)
+        (recur (inc frame)))))
+  (cpp/CloseWindow))

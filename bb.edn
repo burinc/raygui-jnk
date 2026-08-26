@@ -248,4 +248,28 @@
 
   floating-window
   {:doc "two draggable floating windows"
-   :task (run-example "floating-window")}}}
+   :task (run-example "floating-window")}
+
+  message-box
+  {:doc "a modal message box with two buttons"
+   :task (run-example "message-box")}
+
+  custom-input-box
+  {:doc "a hand-built input dialog over a panel"
+   :task (run-example "custom-input-box")}
+
+  color-picker
+  {:doc "an RGB picker with an alpha bar"
+   :task (run-example "color-picker")}
+
+  color-picker-hsv
+  {:doc "the HSV picker and panel"
+   :task (run-example "color-picker-hsv")}
+
+  style-selector
+  {:doc "cycle six vendored .rgs style themes"
+   :task (run-example "style-selector")}
+
+  gui-state
+  {:doc "forced states, alpha and lock"
+   :task (run-example "gui-state")}}}

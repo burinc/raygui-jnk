@@ -1,0 +1,71 @@
+(ns net.b12n.raygui-jnk.custom-input-box
+  "raygui [dialogs] - a hand-built input dialog over a panel.
+
+  A port of raygui's own examples/controls/custom_input_box.c.
+
+  Where GuiTextInputBox is one call, this is the same dialog assembled from
+  parts: a panel, a label, a text box and two buttons, each positioned by the
+  caller. That is the trade -- more code, but the layout, the button labels
+  and the validation are all yours.
+
+  The validation here is real: OK stays disabled while the field is empty,
+  via GuiDisable/GuiEnable around just that button."
+  (:require [net.b12n.raygui-jnk.raygui :as g]
+            [net.b12n.raygui-jnk.raylib :as rl])
+  (:include "raylib.h" "rlgl.h"))
+
+(def WIDTH 480)
+(def HEIGHT 300)
+(def CAP 48)
+
+(defn -main [& args]
+  (cpp/InitWindow WIDTH HEIGHT "raygui [dialogs] - custom input box (jank)")
+  (cpp/SetTargetFPS 60)
+  (let [deadline (rl/auto-quit-ms)
+        shot     (rl/shot-path)
+        buf      (g/tcell "untitled" CAP)
+        editing? (g/bcell false)
+        open?    (g/bcell true)
+        saved    (g/tcell "(nothing saved)" CAP)]
+    (loop [frame 0]
+      (cpp/BeginDrawing)
+      (g/clear-background!)
+
+      (g/label! 20.0 14.0 440.0 20.0 (str "last saved as: " (g/tvalue saved)))
+
+      (if (g/bvalue open?)
+        (do
+          (cpp/DrawRectangle 0 0 WIDTH HEIGHT (cpp/Fade cpp/RAYWHITE (cpp/float 0.7)))
+
+          ;; The dialog, assembled by hand.
+          (g/panel! 90.0 70.0 300.0 160.0 "Save as")
+          (g/label! 110.0 112.0 260.0 20.0 "File name:")
+
+          (when (pos? (g/text-box! 110.0 134.0 260.0 30.0 buf CAP (g/bvalue editing?)))
+            (g/breset! editing? (not (g/bvalue editing?))))
+
+          (when (g/button! 110.0 180.0 120.0 30.0 "Cancel")
+            (g/breset! open? false))
+
+          ;; Validation the one-call dialog cannot express: OK is disabled
+          ;; while the field is empty.
+          (let [empty? (zero? (count (g/tvalue buf)))]
+            (when empty? (g/disable!))
+            (when (g/button! 250.0 180.0 120.0 30.0 "OK")
+              (g/treset! saved (g/tvalue buf))
+              (g/breset! open? false))
+            (when empty? (g/enable!))))
+
+        (when (g/button! 180.0 130.0 120.0 32.0 "Save as...")
+          (g/breset! open? true)))
+
+      (g/status-bar! 0.0 (- HEIGHT 24.0) (+ 0.0 WIDTH) 24.0
+                     "  OK is disabled while the name is empty")
+
+      (when (zero? frame) (rl/maybe-screenshot! shot))
+      (cpp/EndDrawing)
+      (when (rl/keep-running? deadline)
+        (recur (inc frame))))
+    (g/tfree! buf)
+    (g/tfree! saved))
+  (cpp/CloseWindow))

@@ -1,0 +1,64 @@
+(ns net.b12n.raygui-jnk.message-box
+  "raygui [dialogs] - a modal message box with two buttons.
+
+  GuiMessageBox returns a RESULT_* code, not an index: 1 when something was
+  pressed, 0 otherwise. The index arrives in the cell -- 0 for the window's
+  own close button, then 1..n for the buttons in ';' order.
+
+  Modality is the caller's job. raygui draws no scrim and blocks nothing, so
+  the background is dimmed by hand and everything behind is locked."
+  (:require [net.b12n.raygui-jnk.raygui :as g]
+            [net.b12n.raygui-jnk.raylib :as rl])
+  (:include "raylib.h" "rlgl.h"))
+
+(def WIDTH 460)
+(def HEIGHT 300)
+
+(defn -main [& args]
+  (cpp/InitWindow WIDTH HEIGHT "raygui [dialogs] - message box (jank)")
+  (cpp/SetTargetFPS 60)
+  (let [deadline (rl/auto-quit-ms)
+        shot     (rl/shot-path)
+        open?    (g/bcell true)
+        btn      (g/icell -1)
+        answer   (g/tcell "(nothing yet)" 48)]
+    (loop [frame 0]
+      (cpp/BeginDrawing)
+      (g/clear-background!)
+
+      (when (g/bvalue open?) (g/lock!))
+      (g/label! 20.0 14.0 420.0 20.0 "Behind the dialog:")
+      (g/button! 20.0 40.0 150.0 32.0 "Delete project")
+      (g/label! 20.0 88.0 420.0 20.0 (str "answer: " (g/tvalue answer)))
+      (g/unlock!)
+
+      (when (g/bvalue open?)
+        ;; raygui draws no scrim; dim it by hand so the modality reads.
+        (cpp/DrawRectangle 0 0 WIDTH HEIGHT (cpp/Fade cpp/RAYWHITE (cpp/float 0.7)))
+        (when (pos? (g/message-box! 90.0 100.0 280.0 130.0
+                                    "Delete project?"
+                                    "This cannot be undone."
+                                    "Cancel;Delete" btn))
+          ;; cond, not case: jank's case fails to compile a clause list whose
+          ;; results are C string literals -- 'no viable overloaded =' deep in
+          ;; clojure/core.jank, naming neither this form nor this file.
+          (g/treset! answer (let [b (g/ivalue btn)]
+                              (cond (= b 0) "dismissed (close button)"
+                                    (= b 1) "Cancel"
+                                    (= b 2) "Delete"
+                                    :else   "?")))
+          (g/breset! open? false)))
+
+      (when-not (g/bvalue open?)
+        (when (g/button! 180.0 150.0 100.0 32.0 "Ask again")
+          (g/breset! open? true)))
+
+      (g/status-bar! 0.0 (- HEIGHT 24.0) (+ 0.0 WIDTH) 24.0
+                     "  the index arrives in the cell, not the return value")
+
+      (when (zero? frame) (rl/maybe-screenshot! shot))
+      (cpp/EndDrawing)
+      (when (rl/keep-running? deadline)
+        (recur (inc frame))))
+    (g/tfree! answer))
+  (cpp/CloseWindow))
