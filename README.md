@@ -34,13 +34,19 @@ untested.
 ## Quick start
 
 ```sh
-bb examples              # the suite, grouped
+bb info                  # every task, grouped. Start here.
+bb examples              # just the suite, grouped
 bb basic-controls        # run one, windowed. Q quits.
+bb run-all               # cycle all 24 as a demo reel, about 6 minutes
 bb shot basic-controls   # run headless and screenshot to /tmp/
 
 bb check                 # compile every example headless, no window
 bb lint                  # clj-kondo over every .jank file
 ```
+
+`bb run-all [secs]` gives each example `secs` of visible window, 8 by default.
+Add about 7 seconds per example for lein to start and compile, which is where
+that 6 minutes comes from. Q skips ahead early.
 
 There is no separate build step for raygui. `raygui-sys/jank-build.bb`
 compiles it during the first `lein` invocation, against the same libraylib the

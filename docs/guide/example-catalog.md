@@ -5,8 +5,10 @@ one namespace under `raygui-examples/src/net/b12n/raygui_jnk/`.
 
 ```sh
 bb <name>          # run one, windowed. Q quits.
+bb run-all [secs]  # cycle all of them, a demo reel
 bb shot <name>     # run headless and screenshot to /tmp/<name>.png
 bb examples        # this grouping, printed live
+bb info            # every task, grouped, not just these
 ```
 
 `scripts/examples_registry.clj` is the single source of truth for the names and

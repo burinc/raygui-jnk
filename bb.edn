@@ -1,11 +1,13 @@
 ;; raygui-jnk task runner.
 ;;
+;;   bb info                every task, grouped: gates, package, examples
 ;;   bb examples            the suite, grouped, with the 49-char cap enforced
 ;;   bb check               compile every example headless -- the fast gate
 ;;   bb lint                clj-kondo
 ;;   bb <example-name>      run one, windowed
 ;;   bb run <name>          same, by argument
 ;;   bb shot <name> [ms]    run headless and screenshot to /tmp/<name>.png
+;;   bb run-all [secs]      cycle every example, secs of window each (demo reel)
 ;;   bb sys:install         lein install raygui-sys to ~/.m2
 ;;   bb hooks:install       pre-commit hook
 ;;
@@ -66,6 +68,19 @@
               (System/exit 1)))))
 
     (defn registered-names [] (mapv (fn [r] (nth r 0)) reg/examples))
+
+    (defn run-example-timed!
+      "Runs one example with its own auto-quit deadline, so it closes itself.
+
+       This reuses the deadline the gates use rather than killing the process:
+       the example shuts raylib down cleanly on its way out, and Q still skips
+       ahead early."
+      [name secs]
+      (apply proc/shell
+             {:dir examples-dir :continue true
+              :extra-env {"RAYGUI_APP_AUTO_QUIT_MS" (str (* 1000 secs))
+                          "RAYGUI_STYLES_DIR" (str (fs/path sys-dir "vendor" "styles"))}}
+             lein-bin ["with-profile" (str "+" name) "run" "--disable-sandbox"]))
 
     (defn task-names
       "The task keys declared in this file. bb.edn is itself EDN, so it can be
@@ -173,6 +188,58 @@
      (spit (str p) "#!/bin/sh\nexec bb lint\n")
      (fs/set-posix-file-permissions p "rwxr-xr-x")
      (println (str "installed " p)))}
+
+  info
+  {:doc "Every task, grouped. Easier to scan than the flat bb tasks."
+   :task
+   (let [w (max 16 (reg/max-name-width))
+         line (fn [n d] (println (str "  bb " (reg/pad n w) "  " d)))
+         tasks (task-names)]
+     (println "")
+     (println "gates")
+     (line "check" "compile every ported example, headless")
+     (line "lint" "clj-kondo over every .jank file, fails on warnings")
+     (line "examples" "the suite, grouped, with the description cap enforced")
+     (println "")
+     (println "package")
+     (line "sys:install" "install raygui-sys to ~/.m2 after editing the wrapper")
+     (line "hooks:install" "install the pre-commit hook")
+     (println "")
+     (println "running")
+     (line "<example-name>" "run one, windowed. Q quits.")
+     (line "run <name>" "the same, by argument")
+     (line "shot <name> [ms]" "run headless and screenshot to /tmp/<name>.png")
+     (line "run-all [secs]" "cycle every example, a demo reel")
+     (doseq [g reg/groups]
+       (println "")
+       (println g)
+       (doseq [row (get (reg/by-group) g)]
+         (let [n (nth row 0)]
+           (line (if (contains? tasks n) n (str n " (not ported)")) (nth row 3)))))
+     (println ""))}
+
+  run-all
+  {:doc "Cycle every example, secs of window each: bb run-all [secs]"
+   :task
+   (let [secs (or (some-> (first *command-line-args*) parse-long) 8)
+         names (filterv (task-names) (registered-names))
+         total (count names)]
+     (println (str "running " total " examples, " secs "s of window each"))
+     (println "Q or the close button skips to the next one early.")
+     ;; Measured on an M1 Pro: about 7s of lein start, compile and launch
+     ;; before each window appears, on top of the window time itself. A cold
+     ;; first run is longer, since raygui and raylib build then.
+     (println (str "Roughly " (+ 7 secs) "s each including launch, so about "
+                   (quot (* total (+ 7 secs)) 60) " minutes total."))
+     (loop [i 0]
+       (when (< i total)
+         (let [n (nth names i)]
+           (println "")
+           (println (str "  [" (inc i) "/" total "] " n))
+           (run-example-timed! n secs))
+         (recur (inc i))))
+     (println "")
+     (println (str "cycled through " total " examples")))}
 
   ;; ------------------------------------------------------------- examples
   ;; One task per ported example. The :doc must match the registry

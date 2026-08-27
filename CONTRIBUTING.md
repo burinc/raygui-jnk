@@ -25,7 +25,13 @@ bb examples  # grouping, the 49-char cap, and registry/bb.edn agreement
 bb shot <n>  # screenshot, and it fails when no file was written
 ```
 
-`bb hooks:install` puts `bb lint` in a pre-commit hook.
+`bb hooks:install` puts `bb lint` in a pre-commit hook. `bb info` lists every
+task grouped, which is easier to scan than flat `bb tasks` now that there is
+one per example.
+
+`bb run-all` cycles the whole suite as a demo reel. It gives each example a
+window deadline rather than killing the process, so raylib shuts down cleanly
+and Q still skips ahead.
 
 After editing anything under `raygui-sys/src/`, run `bb sys:install`. The
 consuming project resolves the wrapper from `~/.m2`, and for vendored C there

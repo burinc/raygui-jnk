@@ -45,10 +45,12 @@ account.
 ## The commands that matter
 
 ```sh
-bb examples              # the suite, grouped
+bb info                  # every task, grouped. Start here.
+bb examples              # just the suite, grouped
 bb check                 # compile every example headless, no window
 bb lint                  # clj-kondo over every .jank file
 bb basic-controls        # run one, windowed. Q quits.
+bb run-all               # cycle all 24 as a demo reel
 bb shot basic-controls   # run headless and screenshot
 ```
 
