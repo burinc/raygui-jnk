@@ -1,0 +1,54 @@
+Third-party attribution
+=======================
+
+This project is released under the zlib License; see LICENSE.
+
+raygui
+------
+  Copyright (c) 2014-2026 Ramon Santamaria (@raysan5)
+  https://github.com/raysan5/raygui
+  Licensed under the zlib/libpng license, the same license as this project.
+
+  This project DOES vendor and redistribute raygui.
+  raygui-sys/vendor/raygui.h is an unmodified copy of upstream's single-file
+  header at revision 5.0-9-gfbf5d95, and raygui-sys/vendor/styles/*.rgs are
+  unmodified copies of six of upstream's style themes. Each .rgs carries an
+  embedded font, which is likewise upstream's.
+
+  raygui is header-only, so there is no shared library to install and no
+  package-manager formula for it anywhere. raygui-sys/vendor/raygui_impl.c is
+  the one compilation unit that instantiates the implementation, and it is the
+  whole of the C in this project. raygui-sys/jank-build.bb compiles it during
+  the build. Vendoring the header is what pins the version and makes that
+  build reproducible.
+
+  Four examples in raygui-examples/src/net/b12n/raygui_jnk/ are jank ports of
+  raygui's own example programs: scroll-panel, floating-window,
+  custom-input-box and style-selector. Those are likewise zlib/libpng
+  licensed, and this project is released under the same license so that the
+  original terms carry through.
+
+raylib
+------
+  Copyright (c) 2013-2026 Ramon Santamaria (@raysan5)
+  https://github.com/raysan5/raylib
+  Licensed under the zlib/libpng license.
+
+  This project does not vendor or redistribute raylib. It arrives as the
+  package org.jank-lang.commons/raylib-sys, which builds raylib from source at
+  dependency-resolution time, and raygui-sys links against that build.
+
+  raygui-sys/src/net/b12n/raygui_jnk/raylib.jank is a small helper namespace
+  covering window lifecycle, screenshots and style-path resolution. It is
+  written for this project rather than derived from another repo's bindings,
+  because jank reaches raylib through raylib.h directly and needs no bindings
+  layer to derive from.
+
+jank
+----
+  https://jank-lang.org
+  The compiler and runtime this project targets. Not vendored.
+
+  raygui-sys/.clj-kondo config is adapted from b12n-raylib-jnk, which worked
+  out how to make clj-kondo useful against .jank sources. That repo is
+  likewise MIT/zlib-compatible and by the same author as this one.
