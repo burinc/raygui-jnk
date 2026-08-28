@@ -49,6 +49,6 @@ jank
   https://jank-lang.org
   The compiler and runtime this project targets. Not vendored.
 
-  raygui-sys/.clj-kondo config is adapted from b12n-raylib-jnk, which worked
-  out how to make clj-kondo useful against .jank sources. That repo is
-  likewise MIT/zlib-compatible and by the same author as this one.
+  .clj-kondo/config.edn is adapted from b12n-raylib-jnk, which worked out how
+  to make clj-kondo useful against .jank sources. That repo is zlib licensed
+  and by the same author as this one.
