@@ -35,11 +35,17 @@ bb shot <n>               # screenshot, and it fails when no file was written
 bb readme:examples-check  # gallery matches the registry, every demo committed
 ```
 
+CI runs the four of those that need no compiler, on every pull request and on
+`main`: that `bb.edn` still loads, `bb lint`, `bb examples` and
+`bb readme:examples-check`. It cannot run `bb check`, which shells out to a
+full native build of jank, raylib and vendored raygui, and it cannot look at a
+screenshot. Both of those stay yours.
+
 `bb hooks:install` puts `bb lint` and `bb readme:examples-check` in a
-pre-commit hook. Both are sub-second, and since this repo has no CI the hook
-is where those two get enforced at all. `bb info` lists every
-task grouped, which is easier to scan than flat `bb tasks` now that there is
-one per example.
+pre-commit hook. Both are sub-second, and both run in CI as well, so the hook
+is what catches a stale gallery before the commit rather than after the push.
+`bb info` lists every task grouped, which is easier to scan than flat
+`bb tasks` now that there is one per example.
 
 `bb run-all` cycles the whole suite as a demo reel. It gives each example a
 window deadline rather than killing the process, so raylib shuts down cleanly

@@ -25,6 +25,10 @@ yet.
   clj-kondo over every `.jank` file, `bb examples` fails when a task's
   documentation drifts from the registry, and `bb shot` captures a screenshot
   and fails when no file was written.
+- **CI.** A GitHub Actions workflow runs the four gates that need no compiler,
+  on every pull request and on `main`: that `bb.edn` still loads, clj-kondo
+  over every `.jank` file, registry agreement with each task's `:doc`, and the
+  README gallery against the registry.
 - **Four guide pages** and a catalog generated from the registry, published at
   <https://raygui-jnk.b12n.app> and mirrored into `b12n-wikis`.
 - **Task surfaces.** `bb info` groups every task, `bb run-all` cycles the suite
@@ -47,5 +51,5 @@ yet.
 - No control here has been exercised by an automated test. The suite's
   automated claim is that it renders correctly.
 - Linux and x86-64 are untested.
-- There is no CI. `bb lint` and `bb readme:examples-check` run in a pre-commit
-  hook, and everything else is run by hand.
+- CI cannot compile anything. jank publishes no current prebuilt binary, so
+  `bb check` and every screenshot are still run by hand.

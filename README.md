@@ -1,5 +1,7 @@
 # raygui-jnk
 
+[![CI](https://github.com/burinc/raygui-jnk/actions/workflows/ci.yml/badge.svg)](https://github.com/burinc/raygui-jnk/actions/workflows/ci.yml)
+
 [raygui](https://github.com/raysan5/raygui), raylib's immediate-mode GUI
 companion, ported to **[jank](https://jank-lang.org)**: a native Clojure
 dialect that compiles through C++ and LLVM rather than running on the JVM.

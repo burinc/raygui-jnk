@@ -185,8 +185,9 @@
 
   hooks:install
   {:doc "Install a pre-commit hook running bb lint and the README check"
-   ;; Both are sub-second. This repo has no CI, so the hook is the only place
-   ;; the README gallery gets checked against the registry at all.
+   ;; Both are sub-second. CI runs them too, on every pull request and on
+   ;; main, so the hook is what catches a stale gallery before the commit
+   ;; rather than after the push.
    :task
    (let [p (fs/path repo-root ".git" "hooks" "pre-commit")]
      (spit (str p) "#!/bin/sh\nset -e\nbb lint\nbb readme:examples-check\n")

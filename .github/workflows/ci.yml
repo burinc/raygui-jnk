@@ -1,0 +1,86 @@
+name: CI
+
+# ---------------------------------------------------------------------------
+# Runs on pull requests and pushes to main, plus manual dispatch. Actions is
+# free for standard runners on public repositories, which this repo is.
+#
+# There is deliberately NO compile gate, and that is not an oversight. In this
+# repo `bb check` is not an offline check at all: it shells out to
+# `lein with-profile +check run`, which needs jank, lein-jank, a C++ toolchain
+# and a full native build of vendored raygui and of raylib-sys. jank publishes
+# no current prebuilt binary, so a compile job would have to build the jank
+# compiler from source, which means building Clang. That is far beyond what a
+# per-PR job should do.
+#
+# So this gate covers what can be checked before the compiler is reached, and
+# in practice that is most of what actually goes wrong when an example is
+# added: a bb.edn that no longer parses, a task whose :doc has drifted from
+# the registry description, a description over the 49-character cap, a missing
+# screenshot, a stale README gallery, and anything clj-kondo can see. The
+# whole run is well under a second of real work.
+#
+# What CI still cannot prove, and what stays the contributor's job:
+#
+#   - that the example compiles. `bb check` locally is the gate for that.
+#   - that it renders correctly. `bb shot <name>` writes the PNG, and someone
+#     has to look at it. See "The screenshot is a gate" in CONTRIBUTING.md.
+#   - touchpoints 1, 2 and 3 from CONTRIBUTING.md, meaning the source file,
+#     the :profiles entry, and the :require plus `required` entry in
+#     check.jank. Those surface only at compile time today.
+#
+# If jank ever ships a usable prebuilt binary, a compile job belongs here too.
+# ---------------------------------------------------------------------------
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One run per branch, and a new push cancels the previous run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: offline gates
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pinned to the versions this repo is developed against, so CI cannot
+      # disagree with a clean local run because a tool changed a default.
+      - name: Install babashka and clj-kondo
+        uses: DeLaGuardo/setup-clojure@13.6.1
+        with:
+          bb: 1.12.196
+          clj-kondo: "2026.05.25"
+
+      # bb.edn is read by babashka's EDN reader, which supports no #"regex",
+      # no @deref and no #(...). Every one of those is a load-time error that
+      # breaks every task at once, not just the edited one.
+      - name: bb.edn and scripts load
+        run: bb tasks > /dev/null
+
+      # clj-kondo does not discover .jank files: linting a directory scans for
+      # .clj/.cljs/.cljc, finds nothing, and reports zero findings in a few
+      # milliseconds. bb lint passes all 30 files explicitly and exits non-zero
+      # on a warning as well as an error.
+      - name: clj-kondo
+        run: bb lint
+
+      # Registry agreement: every bb.edn task :doc matches its registry
+      # description exactly, and no description exceeds the 49-character cap.
+      - name: Registry and task descriptions
+        run: bb examples
+
+      # Every registered example has a committed screenshot under docs/demos/,
+      # and the README gallery matches what the registry would generate.
+      - name: README gallery
+        run: bb readme:examples-check
