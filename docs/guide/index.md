@@ -72,7 +72,9 @@ it as part of the first `lein` invocation, against the same libraylib the
   an example here can be wrong while every automated check passes. Each one
   happened during this port. Read it before adding an example.
 - [`example-catalog.md`](example-catalog.md): all 24 with screenshots, plus the
-  six vendored themes.
+  six vendored themes. Generated from the registry by
+  `bb scripts/gen_catalog.clj`, as the README gallery is by
+  `bb readme:examples`.
 
 ## The screenshot is a gate
 

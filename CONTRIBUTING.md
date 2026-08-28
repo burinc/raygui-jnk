@@ -11,21 +11,27 @@ Six touchpoints, and missing any of them fails quietly rather than loudly:
 4. a `bb.edn` task whose `:doc` matches the registry description exactly
 5. a row in `scripts/examples_registry.clj`, description capped at 49
    characters
-6. a screenshot you have looked at
+6. a screenshot you have looked at, committed to `docs/demos/<name>.png`,
+   then `bb readme:examples` to fold it into the README gallery
 
-`bb examples` checks 4 and 5 against each other and fails on drift. Nothing
-checks 6 for you.
+`bb examples` checks 4 and 5 against each other and fails on drift.
+`bb readme:examples-check` fails when the screenshot is missing or the gallery
+is stale, and the pre-commit hook runs it. Whether you actually looked at the
+picture is the one thing no gate can check.
 
 ## The gates
 
 ```sh
-bb check     # compiles every registered example, no window
-bb lint      # clj-kondo, and it fails on warnings
-bb examples  # grouping, the 49-char cap, and registry/bb.edn agreement
-bb shot <n>  # screenshot, and it fails when no file was written
+bb check                  # compiles every registered example, no window
+bb lint                   # clj-kondo, and it fails on warnings
+bb examples               # grouping, the cap, and registry/bb.edn agreement
+bb shot <n>               # screenshot, and it fails when no file was written
+bb readme:examples-check  # gallery matches the registry, every demo committed
 ```
 
-`bb hooks:install` puts `bb lint` in a pre-commit hook. `bb info` lists every
+`bb hooks:install` puts `bb lint` and `bb readme:examples-check` in a
+pre-commit hook. Both are sub-second, and since this repo has no CI the hook
+is where those two get enforced at all. `bb info` lists every
 task grouped, which is easier to scan than flat `bb tasks` now that there is
 one per example.
 

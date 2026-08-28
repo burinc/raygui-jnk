@@ -8,6 +8,7 @@
 ;;   bb run <name>          same, by argument
 ;;   bb shot <name> [ms]    run headless and screenshot to /tmp/<name>.png
 ;;   bb run-all [secs]      cycle every example, secs of window each (demo reel)
+;;   bb readme:examples     regenerate the README gallery from the registry
 ;;   bb sys:install         lein install raygui-sys to ~/.m2
 ;;   bb hooks:install       pre-commit hook
 ;;
@@ -28,7 +29,8 @@
              '[babashka.process :as proc]
              '[clojure.string :as str]
              '[clojure.edn :as edn]
-             '[examples-registry :as reg])
+             '[examples-registry :as reg]
+             '[readme-tools :as rt])
 
     (def repo-root (str (fs/parent (fs/absolutize "bb.edn"))))
     (def examples-dir (str (fs/path repo-root "raygui-examples")))
@@ -182,10 +184,12 @@
                  (System/exit 1))))}
 
   hooks:install
-  {:doc "Install a pre-commit hook running bb lint"
+  {:doc "Install a pre-commit hook running bb lint and the README check"
+   ;; Both are sub-second. This repo has no CI, so the hook is the only place
+   ;; the README gallery gets checked against the registry at all.
    :task
    (let [p (fs/path repo-root ".git" "hooks" "pre-commit")]
-     (spit (str p) "#!/bin/sh\nexec bb lint\n")
+     (spit (str p) "#!/bin/sh\nset -e\nbb lint\nbb readme:examples-check\n")
      (fs/set-posix-file-permissions p "rwxr-xr-x")
      (println (str "installed " p)))}
 
@@ -240,6 +244,53 @@
          (recur (inc i))))
      (println "")
      (println (str "cycled through " total " examples")))}
+
+  readme:examples
+  {:doc "Regenerate the README example gallery from the registry"
+   :task
+   (let [missing (rt/missing-demos repo-root)]
+     (if (seq missing)
+       (binding [*out* *err*]
+         (println "missing screenshots, run bb shot <name> for each:")
+         (doseq [row missing] (println (str "  " (rt/demo-path (nth row 0)))))
+         (System/exit 1))
+       (let [path (str (fs/path repo-root "README.md"))
+             text (slurp path)]
+         (if-let [spliced (rt/splice text (rt/html))]
+           (do (spit path spliced)
+               (println (str "README gallery regenerated, "
+                             (count reg/examples) " examples")))
+           (binding [*out* *err*]
+             (println "README markers not found. Expected both of:")
+             (println (str "  " rt/begin-marker))
+             (println (str "  " rt/end-marker))
+             (System/exit 1))))))}
+
+  readme:examples-check
+  {:doc "Fail if the README gallery is stale or a screenshot is missing"
+   :task
+   (let [missing (rt/missing-demos repo-root)]
+     (when (seq missing)
+       (binding [*out* *err*]
+         (println "missing screenshots:")
+         (doseq [row missing] (println (str "  " (rt/demo-path (nth row 0)))))
+         (System/exit 1)))
+     (let [text (slurp (str (fs/path repo-root "README.md")))
+           cur  (rt/current-block text)]
+       (cond
+         (nil? cur)
+         (binding [*out* *err*]
+           (println "README markers not found; run bb readme:examples")
+           (System/exit 1))
+
+         (not= cur (rt/html))
+         (binding [*out* *err*]
+           (println "README gallery is stale; run bb readme:examples")
+           (System/exit 1))
+
+         :else
+         (println (str "README gallery matches the registry, "
+                       (count reg/examples) " examples")))))}
 
   ;; ------------------------------------------------------------- examples
   ;; One task per ported example. The :doc must match the registry
