@@ -3,6 +3,7 @@
 ;;   bb info                every task, grouped: gates, package, examples
 ;;   bb examples            the suite, grouped, with the 49-char cap enforced
 ;;   bb check               compile every example headless -- the fast gate
+;;   bb check:registration  source, profile and check.jank entries agree
 ;;   bb lint                clj-kondo
 ;;   bb <example-name>      run one, windowed
 ;;   bb run <name>          same, by argument
@@ -30,7 +31,8 @@
              '[clojure.string :as str]
              '[clojure.edn :as edn]
              '[examples-registry :as reg]
-             '[readme-tools :as rt])
+             '[readme-tools :as rt]
+             '[registration :as regi])
 
     (def repo-root (str (fs/parent (fs/absolutize "bb.edn"))))
     (def examples-dir (str (fs/path repo-root "raygui-examples")))
@@ -126,6 +128,26 @@
   {:doc "Compile every ported example, headless"
    :task (lein examples-dir ["with-profile" "+check" "run" "--disable-sandbox"])}
 
+  check:registration
+  {:doc "Source, profile and check.jank entries agree with the registry"
+   ;; The offline companion to `check`, and the gate `check` cannot be for
+   ;; itself.
+   ;;
+   ;; An example left out of check.jank's :require is never compiled by
+   ;; `bb check`, which then prints success and a count that silently excludes
+   ;; it. A green compile gate over code it never read is worse than no gate,
+   ;; so the registration gets verified separately, without a compiler.
+   :task
+   (let [probs (regi/problems repo-root (task-names))]
+     (if (seq probs)
+       (binding [*out* *err*]
+         (println "registration gaps:")
+         (doseq [[n what] probs] (println (str "  " n ": " what)))
+         (System/exit 1))
+       (println (str "registration ok, "
+                     (count (filterv (task-names) (registered-names)))
+                     " examples across source, profile and check.jank"))))}
+
   lint
   {:doc "clj-kondo over both projects"
    ;; clj-kondo does NOT discover .jank files: --lint on a directory scans for
@@ -184,25 +206,26 @@
                  (System/exit 1))))}
 
   hooks:install
-  {:doc "Install a pre-commit hook running bb lint and the README check"
+  {:doc "Install a pre-commit hook running the three offline gates"
    ;; Both are sub-second. CI runs them too, on every pull request and on
    ;; main, so the hook is what catches a stale gallery before the commit
    ;; rather than after the push.
    :task
    (let [p (fs/path repo-root ".git" "hooks" "pre-commit")]
-     (spit (str p) "#!/bin/sh\nset -e\nbb lint\nbb readme:examples-check\n")
+     (spit (str p) "#!/bin/sh\nset -e\nbb lint\nbb check:registration\nbb readme:examples-check\n")
      (fs/set-posix-file-permissions p "rwxr-xr-x")
      (println (str "installed " p)))}
 
   info
   {:doc "Every task, grouped. Easier to scan than the flat bb tasks."
    :task
-   (let [w (max 16 (reg/max-name-width))
+   (let [w (max 18 (reg/max-name-width))
          line (fn [n d] (println (str "  bb " (reg/pad n w) "  " d)))
          tasks (task-names)]
      (println "")
      (println "gates")
      (line "check" "compile every ported example, headless")
+     (line "check:registration" "source, profile and check.jank entries agree")
      (line "lint" "clj-kondo over every .jank file, fails on warnings")
      (line "examples" "the suite, grouped, with the description cap enforced")
      (println "")

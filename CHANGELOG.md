@@ -25,10 +25,17 @@ yet.
   clj-kondo over every `.jank` file, `bb examples` fails when a task's
   documentation drifts from the registry, and `bb shot` captures a screenshot
   and fails when no file was written.
-- **CI.** A GitHub Actions workflow runs the four gates that need no compiler,
+- **`bb check:registration`.** Verifies the three registration touchpoints a
+  compiler would otherwise have to find: the source file, the `:profiles`
+  entry, and the `:require` plus `required` entry in `check.jank`. That last
+  one is why it exists. An example missing from `check.jank` is never compiled
+  by `bb check`, which still prints success and a count, so the compile gate
+  goes green over code it never read. It also reports a source file with no
+  registry row.
+- **CI.** A GitHub Actions workflow runs the five gates that need no compiler,
   on every pull request and on `main`: that `bb.edn` still loads, clj-kondo
-  over every `.jank` file, registry agreement with each task's `:doc`, and the
-  README gallery against the registry.
+  over every `.jank` file, registry agreement with each task's `:doc`, the
+  registration touchpoints, and the README gallery against the registry.
 - **Four guide pages** and a catalog generated from the registry, published at
   <https://raygui-jnk.b12n.app> and mirrored into `b12n-wikis`.
 - **Task surfaces.** `bb info` groups every task, `bb run-all` cycles the suite

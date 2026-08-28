@@ -15,7 +15,8 @@ name: CI
 # So this gate covers what can be checked before the compiler is reached, and
 # in practice that is most of what actually goes wrong when an example is
 # added: a bb.edn that no longer parses, a task whose :doc has drifted from
-# the registry description, a description over the 49-character cap, a missing
+# the registry description, a description over the 49-character cap, an
+# example registered in some of its places but not all of them, a missing
 # screenshot, a stale README gallery, and anything clj-kondo can see. The
 # whole run is well under a second of real work.
 #
@@ -24,9 +25,6 @@ name: CI
 #   - that the example compiles. `bb check` locally is the gate for that.
 #   - that it renders correctly. `bb shot <name>` writes the PNG, and someone
 #     has to look at it. See "The screenshot is a gate" in CONTRIBUTING.md.
-#   - touchpoints 1, 2 and 3 from CONTRIBUTING.md, meaning the source file,
-#     the :profiles entry, and the :require plus `required` entry in
-#     check.jank. Those surface only at compile time today.
 #
 # If jank ever ships a usable prebuilt binary, a compile job belongs here too.
 # ---------------------------------------------------------------------------
@@ -82,5 +80,11 @@ jobs:
 
       # Every registered example has a committed screenshot under docs/demos/,
       # and the README gallery matches what the registry would generate.
+      # Touchpoints 1, 2 and 3 from CONTRIBUTING.md, which `bb check` cannot
+      # gate for itself: an example missing from check.jank's :require is
+      # never compiled, and `bb check` still prints success and a count.
+      - name: Registration touchpoints
+        run: bb check:registration
+
       - name: README gallery
         run: bb readme:examples-check

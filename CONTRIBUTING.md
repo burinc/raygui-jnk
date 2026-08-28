@@ -20,30 +20,36 @@ Six touchpoints, and missing any of them fails quietly rather than loudly:
 6. a screenshot you have looked at, committed to `docs/demos/<name>.png`,
    then `bb readme:examples` to fold it into the README gallery
 
-`bb examples` checks 4 and 5 against each other and fails on drift.
-`bb readme:examples-check` fails when the screenshot is missing or the gallery
-is stale, and the pre-commit hook runs it. Whether you actually looked at the
-picture is the one thing no gate can check.
+`bb check:registration` covers 1, 2 and 3, including the case `bb check`
+cannot catch for itself: an example left out of check.jank compiles nothing
+and still reports success. `bb examples` checks 4 and 5 against each other and
+fails on drift. `bb readme:examples-check` fails when the screenshot is missing
+or the gallery is stale. Whether you actually looked at the picture is the one
+thing no gate can check.
 
 ## The gates
 
 ```sh
 bb check                  # compiles every registered example, no window
+bb check:registration     # source, profile and check.jank entries agree
 bb lint                   # clj-kondo, and it fails on warnings
 bb examples               # grouping, the cap, and registry/bb.edn agreement
 bb shot <n>               # screenshot, and it fails when no file was written
 bb readme:examples-check  # gallery matches the registry, every demo committed
 ```
 
-CI runs the four of those that need no compiler, on every pull request and on
-`main`: that `bb.edn` still loads, `bb lint`, `bb examples` and
-`bb readme:examples-check`. It cannot run `bb check`, which shells out to a
-full native build of jank, raylib and vendored raygui, and it cannot look at a
-screenshot. Both of those stay yours.
+CI runs the five of those that need no compiler, on every pull request and on
+`main`: that `bb.edn` still loads, `bb lint`, `bb examples`,
+`bb check:registration` and `bb readme:examples-check`. It cannot run
+`bb check`, which shells out to a full native build of jank, raylib and
+vendored raygui, and it cannot look at a screenshot. Both of those stay
+yours.
 
-`bb hooks:install` puts `bb lint` and `bb readme:examples-check` in a
-pre-commit hook. Both are sub-second, and both run in CI as well, so the hook
-is what catches a stale gallery before the commit rather than after the push.
+`bb hooks:install` puts `bb lint`, `bb check:registration` and
+`bb readme:examples-check` in a pre-commit hook. All three are sub-second, and
+all three run in CI as well, so the hook is what catches a gap before the
+commit rather than after the push. Re-run it if you installed the hook
+earlier, since the file is written once rather than updated.
 `bb info` lists every task grouped, which is easier to scan than flat
 `bb tasks` now that there is one per example.
 
