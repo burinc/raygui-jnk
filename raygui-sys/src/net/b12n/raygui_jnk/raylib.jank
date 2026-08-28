@@ -35,6 +35,17 @@
   []
   (getenv-str "RAYGUI_APP_SHOT"))
 
+(defn shot-after-ms
+  "RAYGUI_APP_SHOT_AFTER_MS, or `default`.
+
+   Most examples capture on frame 0, where the first frame already shows
+   everything. An animated one has to wait, and being able to move that
+   moment from outside is what lets a series of runs sample a whole cycle
+   for a GIF without editing the example."
+  [default]
+  (or (when-let [s (getenv-str "RAYGUI_APP_SHOT_AFTER_MS")] (parse-long s))
+      default))
+
 (defn maybe-screenshot!
   "Flush the render batch, then capture to `path`.
 

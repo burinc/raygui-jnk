@@ -6,7 +6,10 @@
 
   DEVIATION from the suite's screenshot convention: every other example
   captures on frame 0. Here frame 0 shows an empty bar, which proves nothing,
-  so the capture waits until the bar is partly filled."
+  so the capture waits until the bar is partly filled.
+
+  RAYGUI_APP_SHOT_AFTER_MS moves that moment, which is how a series of runs
+  samples the whole 4s cycle to build an animation."
   (:require [net.b12n.raygui-jnk.raygui :as g]
             [net.b12n.raygui-jnk.raylib :as rl])
   (:include "raylib.h" "rlgl.h"))
@@ -14,13 +17,14 @@
 (def WIDTH 440)
 (def HEIGHT 220)
 (def PERIOD 4.0)
-(def SHOT-AFTER-MS 900.0)
+(def SHOT-AFTER-MS-DEFAULT 900)
 
 (defn -main [& args]
   (cpp/InitWindow WIDTH HEIGHT "raygui [inputs] - progress bar (jank)")
   (cpp/SetTargetFPS 60)
   (let [deadline (rl/auto-quit-ms)
         shot     (rl/shot-path)
+        shot-at  (rl/shot-after-ms SHOT-AFTER-MS-DEFAULT)
         progress (g/fcell 0.0)
         loaded   (g/fcell 0.0)]
     (loop [shot-taken? false]
@@ -41,7 +45,7 @@
         (g/status-bar! 0.0 (- HEIGHT 24.0) (+ 0.0 WIDTH) 24.0
                        (str "  " (int (* 100.0 frac)) "%   t=" (int t) "s"))
 
-        (let [take? (and (not shot-taken?) (> (rl/elapsed-ms) SHOT-AFTER-MS))]
+        (let [take? (and (not shot-taken?) (> (rl/elapsed-ms) shot-at))]
           (when take? (rl/maybe-screenshot! shot))
           (cpp/EndDrawing)
           (when (rl/keep-running? deadline)
