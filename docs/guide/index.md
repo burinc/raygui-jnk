@@ -14,6 +14,10 @@ real again.
 The suite is complete: 24 examples across 7 groups. `bb examples` prints the
 live count.
 
+These pages are published at <https://raygui-jnk.b12n.app> and mirrored into
+`b12n-wikis`. Both come from `docs/guide/` in the project repo, so edit the
+Markdown there.
+
 ## Why raygui suits this
 
 Nearly every raygui control has the same shape. Bounds in, application state

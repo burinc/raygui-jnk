@@ -1,5 +1,11 @@
 # Contributing
 
+New examples are welcome. The suite is deliberately mechanical to grow.
+
+The documentation is published at <https://raygui-jnk.b12n.app>, generated from
+this repo's `docs/guide/` by the shared `b12n-docs` engine. Edit the Markdown
+here, never the generated site.
+
 ## Adding an example
 
 Six touchpoints, and missing any of them fails quietly rather than loudly:
@@ -56,6 +62,18 @@ being written.
 Build your example so its own screenshot cross-checks its state. Print the
 cell value beside the control. Seed a scroll index to something other than
 zero. Seed a spinner above its own maximum so the clamp has to prove itself.
+
+## Republishing the docs (maintainer)
+
+```sh
+bb docs-sync              # rebuild, push the site repo, mirror the wiki, S3 + CloudFront
+bb docs-sync --no-push    # commit locally, publish nothing outward
+```
+
+Needs the sibling checkouts (`b12n-docs`, `raygui-jnk.github.io`, `b12n-wikis`)
+and AWS credentials for the `b12n` profile. The AWS CLI honours `HTTPS_PROXY`,
+so on a restricted network unset it first or every call dies at the proxy while
+git keeps working.
 
 ## Writing bindings
 

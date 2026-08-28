@@ -89,6 +89,9 @@ saying so.
 
 ## The examples
 
+Every one has a committed screenshot. Click a preview for the full-size image,
+or browse them on the [documentation site](https://raygui-jnk.b12n.app).
+
 Four are ports of raygui's own examples: `scroll-panel`, `floating-window`,
 `custom-input-box` and `style-selector`. The gallery below is generated from
 `scripts/examples_registry.clj` by `bb readme:examples`, so it cannot drift
@@ -190,6 +193,9 @@ carries the same 24 with a longer note on each.
 <!-- END:examples -->
 
 ## Documentation
+
+Published at <https://raygui-jnk.b12n.app>, generated from this repo's
+`docs/guide/`. Edit the Markdown here, never the site.
 
 - [`the-jank-shape.md`](docs/guide/the-jank-shape.md): the boundary rule that
   shapes the whole binding, and everything that follows from it.

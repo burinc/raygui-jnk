@@ -25,7 +25,11 @@ yet.
   clj-kondo over every `.jank` file, `bb examples` fails when a task's
   documentation drifts from the registry, and `bb shot` captures a screenshot
   and fails when no file was written.
-- **Four guide pages** and a catalog generated from the registry.
+- **Four guide pages** and a catalog generated from the registry, published at
+  <https://raygui-jnk.b12n.app> and mirrored into `b12n-wikis`.
+- **Task surfaces.** `bb info` groups every task, `bb run-all` cycles the suite
+  as a demo reel, `bb readme:examples` regenerates the README gallery from the
+  registry, and `bb docs-sync` republishes the site.
 
 ### Not included
 
@@ -43,3 +47,5 @@ yet.
 - No control here has been exercised by an automated test. The suite's
   automated claim is that it renders correctly.
 - Linux and x86-64 are untested.
+- There is no CI. `bb lint` and `bb readme:examples-check` run in a pre-commit
+  hook, and everything else is run by hand.
