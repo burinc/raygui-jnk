@@ -1,0 +1,102 @@
+name: Bug report
+description: An example crashes, renders wrong, or will not compile
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Most failures here come down to three things: which `jank` and
+        `lein-jank` you have, which libraylib raygui actually linked against,
+        and whether you are on a platform this has been run on at all.
+
+        **Please check these first, all four are known and expected:**
+
+        - **You are on Linux or x86-64.** Only macOS on Apple silicon has been
+          verified. Reports from elsewhere are welcome, they are just not
+          regressions yet, so please say which platform you are on.
+        - **Every control is inert, and nothing raises.** raygui calls
+          `GetMousePosition` and `DrawRectangle` internally, and those must
+          resolve to the same libraylib the jank process already loaded.
+          Against a second copy, raygui reads input state nothing is updating
+          and every control goes dead silently. `otool -L` on the built
+          `libraygui.dylib` should show `@rpath/libraylib.*.dylib`. See
+          [building-raygui.md](https://github.com/burinc/raygui-jnk/blob/main/docs/guide/building-raygui.md#linking-against-the-right-raylib).
+        - **You edited something under `raygui-sys/vendor/` and nothing
+          changed.** lein-jank keys a dependency's build output on its
+          descendants rather than its own source, so vendored C is rebuilt
+          from a stale cache with no warning. Run `bb sys:install`.
+        - **`lein` aborts asking for `bwrap`.** macOS has no `bwrap`, so every
+          `lein` call needs `--disable-sandbox`. Every call in `bb.edn`
+          already passes it, so this only bites a direct `lein` invocation.
+
+  - type: input
+    id: example
+    attributes:
+      label: Which example?
+      description: The `bb` name, for instance `bb sliders`. Say "all of them" if it is the build.
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened, and what did you expect?
+      description: |
+        Paste the full error if there is one. If it renders wrong rather than
+        failing, `bb shot <name>` writes a PNG to `/tmp` you can attach, and
+        that is usually worth more than a description.
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Please paste the output of these commands.
+      value: |
+        ```
+        $ uname -sm
+        (paste here, OS and CPU architecture)
+
+        $ jank --version
+        (paste here)
+
+        $ lein version
+        (paste here, and note if this lein is a mise or asdf shim rather than Homebrew's)
+
+        $ bb --version
+        (paste here)
+        ```
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      description: Only the first of these has been verified. The others are not regressions, they are new ground.
+      options:
+        - "macOS, Apple silicon"
+        - "macOS, Intel"
+        - "Linux, x86-64"
+        - "Linux, aarch64"
+        - "Something else"
+    validations:
+      required: true
+
+  - type: textarea
+    id: others
+    attributes:
+      label: Do the gates pass, and do other examples work?
+      description: |
+        `bb check` compiles the whole suite, and `bb basic-controls` is the
+        simplest thing to run. If those work and yours does not, the problem
+        is in that example. If nothing works, it is in the build.
+      value: |
+        ```
+        $ bb check
+        (paste the last few lines)
+
+        $ bb basic-controls
+        (paste here)
+        ```

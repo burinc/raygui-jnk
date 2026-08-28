@@ -1,0 +1,100 @@
+name: New example proposal
+description: Suggest a raygui control or technique worth its own example
+labels: [example]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        All 24 examples in the registry are ported, so this is about growing
+        the suite rather than filling a gap. `bb examples` lists what is there
+        now, grouped, and the
+        [catalog](https://raygui-jnk.b12n.app) has a longer note on each.
+
+        Two things shape what fits:
+
+        - **The sibling suite.** [`raygui-jlt`](https://github.com/burinc/raygui-jlt)
+          carries the same 24 names and the same descriptions on purpose, so
+          the two ports read as one library seen through two Clojure
+          implementations. A new example is nicer if it can land in both.
+        - **Eight raygui functions are deliberately unbound**: `GuiSetFont`,
+          `GuiGetFont`, `GuiLoadStyle`, `GuiTabBarEx`, `GuiValueBoxFloat`,
+          `GuiGetIcons`, `GuiLoadIcons` and `GuiLoadIconsFromMemory`. An
+          example needing one of those needs wrapper work first, which is a
+          design conversation rather than a mechanical port.
+
+        Adding an example is otherwise deliberately mechanical. See
+        [CONTRIBUTING.md](https://github.com/burinc/raygui-jnk/blob/main/CONTRIBUTING.md#adding-an-example),
+        and feel free to open a PR directly instead of an issue.
+
+  - type: input
+    id: name
+    attributes:
+      label: Proposed name
+      description: The `bb` name, lowercase and hyphenated, for instance `grid-snapping`.
+    validations:
+      required: true
+
+  - type: input
+    id: description
+    attributes:
+      label: One-line description
+      description: |
+        This becomes the registry description, the `bb.edn` task `:doc` and the
+        gallery caption, so it is capped at 49 characters and `bb examples`
+        enforces that.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: group
+    attributes:
+      label: Which group?
+      options:
+        - basics
+        - inputs
+        - collections
+        - containers
+        - dialogs
+        - color
+        - styling
+        - "A new group"
+    validations:
+      required: true
+
+  - type: textarea
+    id: demonstrates
+    attributes:
+      label: What would it show that the existing 24 do not?
+      description: |
+        A raygui control, a combination of them, a styling technique, or a
+        jank interop shape worth having written down somewhere.
+    validations:
+      required: true
+
+  - type: textarea
+    id: wrapper
+    attributes:
+      label: Does it need anything new from the wrapper?
+      description: |
+        Say so if it needs one of the eight unbound functions above, or a
+        raygui call that takes or returns a struct by value. A native value
+        cannot cross a jank function boundary, so those need a wrapper-side
+        design rather than a new example on top of what exists.
+
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: What would its screenshot prove?
+      description: |
+        The PNG is this project's gate, and a screenshot that cannot fail is
+        not worth much. The good ones cross-check their own state: print the
+        cell value beside the control, seed a scroll index to something other
+        than zero, seed a spinner above its own maximum so the clamp has to
+        show itself.
+
+  - type: checkboxes
+    id: offer
+    attributes:
+      label: Are you offering to write it?
+      options:
+        - label: Yes, I would like to open the PR

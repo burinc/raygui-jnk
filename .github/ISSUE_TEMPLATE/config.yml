@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation
+    url: https://raygui-jnk.b12n.app
+    about: The guide pages, the example catalog, and what the gates do not catch.
+  - name: raygui itself
+    url: https://github.com/raysan5/raygui
+    about: A control that behaves oddly in C too belongs upstream, not here.
