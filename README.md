@@ -222,5 +222,7 @@ a recording could show pointer motion but never a press or a drag.
 
 ## Licence
 
-zlib, the same as raygui and raylib, so the original terms carry through. This
-project vendors and redistributes raygui. See [`NOTICE`](NOTICE).
+[EPL 2.0](LICENSE), matching jolt and the rest of the fleet. It was zlib until
+2026-09-05. EPL 2.0 relicenses nothing that arrived under another licence:
+raygui and raylib are still zlib, and this project still vendors and
+redistributes raygui, so those terms carry through. See [`NOTICE`](NOTICE).

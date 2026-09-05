@@ -1,13 +1,23 @@
 Third-party attribution
 =======================
 
-This project is released under the zlib License; see LICENSE.
+This project is licensed under the Eclipse Public License 2.0; see LICENSE. It
+was zlib until 2026-09-05, chosen to match raygui and raylib. EPL 2.0
+relicenses nothing that arrived under another licence: the whole is EPL 2.0 and
+each part below keeps what it came with. raygui and raylib remain zlib, which is
+permissive and imposes no condition EPL 2.0 conflicts with, so the combination
+distributes cleanly as long as their notices travel with it. That is what this
+file is for.
+
+One obligation survives the licence change and is easy to lose: zlib requires
+that altered source versions be plainly marked as such. The ported examples
+below satisfy it in their docstrings, and they still have to.
 
 raygui
 ------
   Copyright (c) 2014-2026 Ramon Santamaria (@raysan5)
   https://github.com/raysan5/raygui
-  Licensed under the zlib/libpng license, the same license as this project.
+  Licensed under the zlib/libpng license.
 
   This project DOES vendor and redistribute raygui.
   raygui-sys/vendor/raygui.h is an unmodified copy of upstream's single-file
@@ -24,9 +34,9 @@ raygui
 
   Four examples in raygui-examples/src/net/b12n/raygui_jnk/ are jank ports of
   raygui's own example programs: scroll-panel, floating-window,
-  custom-input-box and style-selector. Those are likewise zlib/libpng
-  licensed, and this project is released under the same license so that the
-  original terms carry through.
+  custom-input-box and style-selector. Those are zlib/libpng licensed and the
+  ports remain derived works of them; zlib asks that altered versions be
+  plainly marked, which their docstrings do.
 
 raylib
 ------
@@ -47,8 +57,9 @@ raylib
 jank
 ----
   https://jank-lang.org
+  Licensed under the Mozilla Public License 2.0.
   The compiler and runtime this project targets. Not vendored.
 
   .clj-kondo/config.edn is adapted from b12n-raylib-jnk, which worked out how
-  to make clj-kondo useful against .jank sources. That repo is zlib licensed
-  and by the same author as this one.
+  to make clj-kondo useful against .jank sources, by the same author as this
+  one.
